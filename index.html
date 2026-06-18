@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEO Audyt — Skaner HTML</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8f9fb;--bg2:#fff;--bg3:#f0f2f5;
+  --text:#1a1d23;--text2:#5a6070;--text3:#8a929e;
+  --border:#e3e6ec;
+  --accent:#2563eb;
+  --green:#16a34a;--green-bg:#f0fdf4;--green-border:#bbf7d0;
+  --amber:#b45309;--amber-bg:#fffbeb;--amber-border:#fde68a;
+  --red:#dc2626;--red-bg:#fef2f2;--red-border:#fecaca;
+  --blue:#1d4ed8;--blue-bg:#eff6ff;--blue-border:#bfdbfe;
+  --dark:#0f172a;
+  --radius:10px;--radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,.08);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.site-header{background:var(--dark);color:#fff;padding:0 2rem}
+.header-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+.logo{font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:.5rem}
+.logo span{color:#60a5fa}
+.badge{background:#1e3a5f;color:#93c5fd;font-size:.7rem;font-weight:600;padding:.2rem .6rem;border-radius:20px}
+.hero{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);color:#fff;padding:3rem 2rem 3.5rem;text-align:center}
+.hero h1{font-size:2rem;font-weight:800;letter-spacing:-.03em;margin-bottom:.5rem}
+.hero h1 span{color:#60a5fa}
+.hero p{color:#94a3b8;font-size:.9rem;margin-bottom:1.75rem}
+.search-wrap{max-width:560px;margin:0 auto}
+.search-box{display:flex;background:#fff;border-radius:var(--radius-lg);overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.3)}
+.search-box input{flex:1;border:none;outline:none;padding:.85rem 1.25rem;font-size:1rem;color:var(--text)}
+.search-box input::placeholder{color:#94a3b8}
+.btn-run{background:var(--accent);color:#fff;border:none;padding:.85rem 1.4rem;font-size:.95rem;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn-run:hover{background:#1d4ed8}
+.btn-run:disabled{background:#94a3b8;cursor:not-allowed}
+.search-hint{color:#64748b;font-size:.78rem;margin-top:.6rem}
+.main{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+#results{display:none}
+
+/* PROGRESS */
+.prog-wrap{background:#fff;border-radius:var(--radius-lg);padding:1.75rem;max-width:440px;margin:2rem auto 0;text-align:center;box-shadow:var(--shadow);display:none}
+.spinner{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto .75rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.prog-bar-outer{height:5px;background:#e2e8f0;border-radius:3px;margin:.75rem 0;overflow:hidden}
+.prog-bar-inner{height:100%;background:var(--accent);border-radius:3px;transition:width .4s}
+.step-list{list-style:none;text-align:left;font-size:.82rem;margin-top:.5rem}
+.step-list li{padding:.2rem 0;display:flex;align-items:center;gap:.5rem;color:var(--text3)}
+.step-list li.done{color:var(--green)}
+.step-list li.active{color:var(--text);font-weight:500}
+.step-list li::before{content:'○';font-size:.6rem;flex-shrink:0}
+.step-list li.done::before{content:'✓';color:var(--green)}
+.step-list li.active::before{content:'◉';color:var(--accent)}
+
+/* SECTION */
+.section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:1.1rem;box-shadow:var(--shadow);overflow:hidden}
+.sec-hdr{padding:.9rem 1.5rem;display:flex;align-items:center;gap:.75rem;cursor:pointer;user-select:none;transition:background .15s}
+.sec-hdr:hover{background:var(--bg3)}
+.section.open .sec-hdr{border-bottom:1px solid var(--border)}
+.sec-icon{font-size:1rem;width:26px;text-align:center;flex-shrink:0}
+.sec-hdr h3{flex:1;font-size:.93rem;font-weight:700}
+.sec-badge{font-size:.7rem;font-weight:700;padding:.18rem .65rem;border-radius:20px;white-space:nowrap}
+.sb-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.sb-amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.sb-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.sb-blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.sb-gray{background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0}
+.chevron{font-size:.72rem;color:var(--text3);transition:transform .2s;margin-left:.2rem}
+.section.open .chevron{transform:rotate(180deg)}
+.sec-body{padding:1.25rem 1.5rem;display:none}
+.section.open .sec-body{display:block}
+
+/* CHECK ROW */
+.cr{display:flex;align-items:flex-start;gap:.8rem;padding:.8rem 0;border-bottom:1px solid var(--border)}
+.cr:last-child{border-bottom:none}
+.ci{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;margin-top:2px}
+.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.info{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.cc strong{display:block;font-size:.88rem;font-weight:600;margin-bottom:.15rem;color:var(--text)}
+.cc p{font-size:.81rem;color:var(--text2);line-height:1.5;margin-top:.15rem}
+.cc code{background:var(--bg3);padding:.1rem .3rem;border-radius:4px;font-size:.77rem;font-family:monospace;color:var(--accent);border:1px solid var(--border);word-break:break-all}
+.ptag{font-size:.65rem;font-weight:700;padding:.12rem .45rem;border-radius:8px;margin-left:.4rem;display:inline-block;vertical-align:middle}
+.ph{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.pm{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.pl{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+
+/* CHAR BAR */
+.char-bar{margin:.5rem 0}
+.char-track{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:.25rem}
+.char-fill{height:100%;border-radius:3px;transition:width .6s}
+.char-labels{display:flex;justify-content:space-between;font-size:.72rem}
+
+/* SERP PREVIEW */
+.serp{background:#fff;border:1px solid #dfe1e5;border-radius:8px;padding:.9rem 1.1rem;margin:.6rem 0;max-width:560px}
+.serp-domain{font-size:.75rem;color:#5f6368;margin-bottom:.2rem}
+.serp-title{font-size:1.05rem;color:#1a0dab;font-weight:400;margin-bottom:.2rem;line-height:1.3}
+.serp-url{font-size:.75rem;color:#006621;margin-bottom:.25rem}
+.serp-desc{font-size:.82rem;color:#4d5156;line-height:1.4}
+.serp-note{font-size:.75rem;padding:.4rem .7rem;border-radius:6px;margin-top:.4rem;display:inline-block}
+.sn-ok{background:var(--green-bg);color:var(--green)}
+.sn-warn{background:var(--amber-bg);color:var(--amber)}
+.sn-fail{background:var(--red-bg);color:var(--red)}
+
+/* HEADINGS TABLE */
+.htable{width:100%;border-collapse:collapse;font-size:.81rem;margin-top:.5rem}
+.htable th{text-align:left;padding:.35rem .6rem;border-bottom:1px solid var(--border);font-size:.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+.htable td{padding:.35rem .6rem;border-bottom:1px solid var(--border);vertical-align:top}
+.htable tr:last-child td{border-bottom:none}
+.htag{font-family:monospace;font-weight:700;font-size:.78rem;color:var(--accent)}
+
+/* IMAGES TABLE */
+.img-item{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;margin-bottom:.4rem;font-size:.8rem}
+.img-item code{word-break:break-all}
+
+/* LINKS TABLE */
+.links-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:.5rem 0}
+.links-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.85rem;text-align:center}
+.links-num{font-size:1.6rem;font-weight:800;line-height:1;margin-bottom:.2rem}
+.links-lbl{font-size:.72rem;color:var(--text3);text-transform:uppercase}
+
+/* SCHEMA BADGES */
+.schema-badge{display:inline-block;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);border-radius:6px;padding:.2rem .55rem;font-size:.75rem;font-weight:600;margin:.15rem}
+
+/* OG TABLE */
+.og-row{display:flex;gap:.75rem;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.82rem;align-items:flex-start}
+.og-row:last-child{border-bottom:none}
+.og-key{color:var(--text3);font-weight:600;min-width:130px;flex-shrink:0;font-size:.78rem}
+.og-val{color:var(--text);word-break:break-word;flex:1}
+.og-val.missing{color:var(--red);font-style:italic}
+
+/* SCORE SUMMARY */
+.score-summary{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:1.25rem;box-shadow:var(--shadow);display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.score-circle{width:90px;height:90px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800;flex-shrink:0;border:4px solid}
+.score-good{border-color:var(--green);color:var(--green);background:var(--green-bg)}
+.score-med{border-color:var(--amber);color:var(--amber);background:var(--amber-bg)}
+.score-bad{border-color:var(--red);color:var(--red);background:var(--red-bg)}
+.score-info{flex:1}
+.score-info h2{font-size:1.2rem;font-weight:700;margin-bottom:.25rem}
+.score-info p{font-size:.85rem;color:var(--text2);margin-bottom:.5rem}
+.score-pills{display:flex;flex-wrap:wrap;gap:.4rem}
+.pill{font-size:.72rem;font-weight:600;padding:.2rem .6rem;border-radius:20px}
+
+/* PRINT */
+.no-print{}
+.print-hdr{display:none}
+@media print{
+  .site-header,.hero,.search-wrap,.prog-wrap,.no-print{display:none!important}
+  .print-hdr{display:block;padding:1rem;border-bottom:2px solid #000;margin-bottom:1rem}
+  .sec-body{display:block!important}
+  .chevron{display:none}
+  body{background:#fff}
+  @page{margin:1.5cm;size:A4}
+}
+
+.btn{display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .9rem;border-radius:7px;font-size:.81rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text);text-decoration:none;transition:background .15s}
+.btn:hover{background:var(--bg3);text-decoration:none}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#1d4ed8}
+
+.site-footer{background:var(--dark);color:#64748b;text-align:center;padding:1.5rem;font-size:.78rem;margin-top:3rem}
+
+@media(max-width:600px){
+  .hero h1{font-size:1.6rem}
+  .search-box{flex-direction:column}
+  .btn-run{width:100%}
+  .links-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header no-print">
+  <div class="header-inner">
+    <div class="logo">🔍 <strong>SEO<span>Audyt</span></strong></div>
+    <span class="badge">v3.0 · HTML Scanner</span>
+  </div>
+</header>
+
+<div class="hero no-print">
+  <h1>Skaner <span>On-Page SEO</span></h1>
+  <p>Pobiera i analizuje HTML strony — bez zewnętrznych API</p>
+  <div class="search-wrap">
+    <div class="search-box">
+      <input type="text" id="urlInput" placeholder="https://twoja-strona.pl" autocomplete="off"/>
+      <button class="btn-run" id="runBtn" onclick="startAudit()">Skanuj →</button>
+    </div>
+    <p class="search-hint">Naciśnij Enter lub kliknij przycisk</p>
+  </div>
+</div>
+
+<div class="main">
+  <div class="prog-wrap" id="progWrap">
+    <div class="spinner"></div>
+    <p style="font-weight:600;font-size:.9rem;margin-bottom:.2rem" id="progLabel">Pobieranie HTML…</p>
+    <div class="prog-bar-outer"><div class="prog-bar-inner" id="progBar" style="width:5%"></div></div>
+    <ul class="step-list">
+      <li id="s0">Pobieranie HTML przez proxy</li>
+      <li id="s1">Parsowanie meta tagów</li>
+      <li id="s2">Analiza nagłówków i treści</li>
+      <li id="s3">Skanowanie obrazów i linków</li>
+      <li id="s4">Sprawdzanie plików technicznych</li>
+      <li id="s5">Generowanie raportu</li>
+    </ul>
+  </div>
+  <div id="results"></div>
+</div>
+
+<footer class="site-footer no-print">
+  Źródło danych: HTML strony · Proxy: allorigins.win · Bez zewnętrznych API
+</footer>
+
+<script>
+const PROXY = 'https://api.allorigins.win/get?url=';
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function setStep(i){
+  ['s0','s1','s2','s3','s4','s5'].forEach((s,j)=>{
+    document.getElementById(s).className = j<i?'done':j===i?'active':'';
+  });
+  document.getElementById('progBar').style.width = `${Math.round((i/6)*92)+5}%`;
+}
+
+// ─── FETCH HTML ───────────────────────────────────────────────────────────────
+async function fetchHTML(url){
+  // Próba 1: bezpośredni fetch (działa jeśli serwer ma CORS lub ta sama domena)
+  try {
+    const r = await fetch(url, {signal: AbortSignal.timeout(8000)});
+    if(r.ok){
+      const text = await r.text();
+      if(text.includes('<html') || text.includes('<HTML')) return {ok:true, html:text, source:'direct'};
+    }
+  } catch(e){}
+
+  // Próba 2: allorigins proxy
+  try {
+    const proxyUrl = PROXY + encodeURIComponent(url);
+    const r = await fetch(proxyUrl, {signal: AbortSignal.timeout(15000)});
+    if(r.ok){
+      const j = await r.json();
+      if(j.contents && j.contents.length > 100){
+        return {ok:true, html:j.contents, source:'proxy'};
+      }
+    }
+  } catch(e){}
+
+  return {ok:false, html:'', source:'none'};
+}
+
+// ─── FETCH PLIK (robots, sitemap, llms) ───────────────────────────────────────
+async function fetchFile(url){
+  try {
+    const r = await fetch(PROXY + encodeURIComponent(url), {signal: AbortSignal.timeout(8000)});
+    if(!r.ok) return {ok:false};
+    const j = await r.json();
+    if(!j.contents) return {ok:false};
+    return {ok:true, content:j.contents};
+  } catch(e){ return {ok:false}; }
+}
+
+// ─── PARSE HTML ───────────────────────────────────────────────────────────────
+function parseHTML(html, baseUrl){
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const domain = baseUrl.replace(/^https?:\/\//,'').split('/')[0];
+
+  // ── Meta podstawowe ──
+  const title     = (doc.querySelector('title')?.textContent || '').trim();
+  const metaDesc  = doc.querySelector('meta[name="description"]')?.getAttribute('content')?.trim() || '';
+  const metaKw    = doc.querySelector('meta[name="keywords"]')?.getAttribute('content')?.trim() || '';
+  const charset   = doc.querySelector('meta[charset]')?.getAttribute('charset') ||
+                    doc.querySelector('meta[http-equiv="Content-Type"]')?.getAttribute('content') || '';
+  const lang      = doc.documentElement.getAttribute('lang') || '';
+  const viewport  = doc.querySelector('meta[name="viewport"]')?.getAttribute('content') || '';
+  const robotsMeta= doc.querySelector('meta[name="robots"]')?.getAttribute('content')?.toLowerCase() || '';
+  const noindex   = robotsMeta.includes('noindex');
+  const nofollow  = robotsMeta.includes('nofollow');
+  const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute('href') || '';
+  const prevLink  = doc.querySelector('link[rel="prev"]')?.getAttribute('href') || '';
+  const nextLink  = doc.querySelector('link[rel="next"]')?.getAttribute('href') || '';
+
+  // ── Favicon ──
+  const favicon = !!(
+    doc.querySelector('link[rel="icon"]') ||
+    doc.querySelector('link[rel="shortcut icon"]') ||
+    doc.querySelector('link[rel="apple-touch-icon"]')
+  );
+  const faviconUrl = doc.querySelector('link[rel="icon"]')?.getAttribute('href') ||
+                     doc.querySelector('link[rel="shortcut icon"]')?.getAttribute('href') || '';
+
+  // ── Open Graph ──
+  const og = {};
+  doc.querySelectorAll('meta[property^="og:"]').forEach(m => {
+    og[m.getAttribute('property')] = m.getAttribute('content') || '';
+  });
+
+  // ── Twitter Card ──
+  const tw = {};
+  doc.querySelectorAll('meta[name^="twitter:"]').forEach(m => {
+    tw[m.getAttribute('name')] = m.getAttribute('content') || '';
+  });
+
+  // ── Hreflang ──
+  const hreflangs = [...doc.querySelectorAll('link[rel="alternate"][hreflang]')].map(l => ({
+    lang: l.getAttribute('hreflang'),
+    href: l.getAttribute('href')
+  }));
+
+  // ── Nagłówki ──
+  const headings = [];
+  doc.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
+    headings.push({
+      level: parseInt(h.tagName[1]),
+      text: h.textContent.trim().replace(/\s+/g,' ').substring(0,120)
+    });
+  });
+  const h1s = headings.filter(h=>h.level===1);
+  const h2s = headings.filter(h=>h.level===2);
+  const h3s = headings.filter(h=>h.level===3);
+
+  // ── Obrazy ──
+  const allImgs = [...doc.querySelectorAll('img')];
+  const imgsNoAlt = allImgs.filter(img => {
+    const alt = img.getAttribute('alt');
+    return alt === null;
+  });
+  const imgsEmptyAlt = allImgs.filter(img => img.getAttribute('alt') === '');
+  const imgData = allImgs.slice(0,20).map(img => ({
+    src: img.getAttribute('src') || '',
+    alt: img.getAttribute('alt'),
+    width: img.getAttribute('width') || '',
+    height: img.getAttribute('height') || '',
+    loading: img.getAttribute('loading') || '',
+    hasAlt: img.getAttribute('alt') !== null,
+    hasSize: !!(img.getAttribute('width') && img.getAttribute('height'))
+  }));
+
+  // ── Linki ──
+  const allLinks = [...doc.querySelectorAll('a[href]')];
+  const internalLinks = allLinks.filter(a => {
+    const href = (a.getAttribute('href')||'').trim();
+    return href.startsWith('/') || href.includes(domain) || href.startsWith('#');
+  });
+  const externalLinks = allLinks.filter(a => {
+    const href = (a.getAttribute('href')||'').trim();
+    return href.startsWith('http') && !href.includes(domain);
+  });
+  const nofollowLinks = externalLinks.filter(a =>
+    (a.getAttribute('rel')||'').includes('nofollow')
+  );
+  const externalLinkData = externalLinks.slice(0,10).map(a => ({
+    href: a.getAttribute('href'),
+    text: a.textContent.trim().substring(0,60),
+    nofollow: (a.getAttribute('rel')||'').includes('nofollow')
+  }));
+
+  // ── Schema.org JSON-LD ──
+  const schemas = [];
+  doc.querySelectorAll('script[type="application/ld+json"]').forEach(s => {
+    try {
+      const obj = JSON.parse(s.textContent);
+      const types = obj['@graph']
+        ? obj['@graph'].map(g=>g['@type']).filter(Boolean)
+        : [obj['@type']].filter(Boolean);
+      schemas.push(...types);
+    } catch(e){}
+  });
+
+  // ── Treść tekstowa ──
+  // Usuń script, style, nav, footer przed liczeniem słów
+  const bodyClone = doc.body?.cloneNode(true);
+  if(bodyClone){
+    bodyClone.querySelectorAll('script,style,nav,footer,header').forEach(el=>el.remove());
+  }
+  const bodyText = bodyClone?.textContent || '';
+  const words = bodyText.trim().split(/\s+/).filter(w=>w.length>2);
+  const wordCount = words.length;
+  const textRatio = html.length > 0 ? Math.round((bodyText.length / html.length) * 100) : 0;
+
+  // ── CSS i JS zewnętrzne ──
+  const cssFiles = [...doc.querySelectorAll('link[rel="stylesheet"]')].map(l=>l.getAttribute('href')||'');
+  const jsFiles  = [...doc.querySelectorAll('script[src]')].map(s=>s.getAttribute('src')||'');
+  const inlineScripts = doc.querySelectorAll('script:not([src])').length;
+
+  // ── Inne meta ──
+  const themeColor  = doc.querySelector('meta[name="theme-color"]')?.getAttribute('content') || '';
+  const generator   = doc.querySelector('meta[name="generator"]')?.getAttribute('content') || '';
+  const author      = doc.querySelector('meta[name="author"]')?.getAttribute('content') || '';
+  const articleAuthor = doc.querySelector('meta[property="article:author"]')?.getAttribute('content') || '';
+  const publishedTime= doc.querySelector('meta[property="article:published_time"]')?.getAttribute('content') || '';
+  const modifiedTime = doc.querySelector('meta[property="article:modified_time"]')?.getAttribute('content') || '';
+
+  // ── Iframe ──
+  const iframes = doc.querySelectorAll('iframe').length;
+
+  // ── Formularz ──
+  const forms  = doc.querySelectorAll('form').length;
+  const inputs = doc.querySelectorAll('input,textarea,select').length;
+
+  return {
+    title, metaDesc, metaKw, charset, lang, viewport,
+    robotsMeta, noindex, nofollow,
+    canonical, prevLink, nextLink,
+    favicon, faviconUrl,
+    og, tw, hreflangs,
+    headings, h1s, h2s, h3s,
+    allImgs: allImgs.length, imgsNoAlt: imgsNoAlt.length,
+    imgsEmptyAlt: imgsEmptyAlt.length, imgData,
+    internalLinks: internalLinks.length,
+    externalLinks: externalLinks.length,
+    nofollowLinks: nofollowLinks.length,
+    externalLinkData,
+    schemas,
+    wordCount, textRatio,
+    cssFiles: cssFiles.length, jsFiles: jsFiles.length, inlineScripts,
+    themeColor, generator, author, articleAuthor,
+    publishedTime, modifiedTime,
+    iframes, forms, inputs
+  };
+}
+
+// ─── PARSE ROBOTS ──────────────────────────────────────────────────────────────
+function parseRobots(content){
+  if(!content) return null;
+  const lines = content.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+  const disallows = lines.filter(l=>l.toLowerCase().startsWith('disallow:')).map(l=>l.replace(/disallow:\s*/i,'').trim());
+  const allows    = lines.filter(l=>l.toLowerCase().startsWith('allow:')).map(l=>l.replace(/allow:\s*/i,'').trim());
+  const sitemaps  = lines.filter(l=>l.toLowerCase().startsWith('sitemap:')).map(l=>l.replace(/sitemap:\s*/i,'').trim());
+  const agents    = lines.filter(l=>l.toLowerCase().startsWith('user-agent:')).map(l=>l.replace(/user-agent:\s*/i,'').trim());
+  const blocksAll = disallows.includes('/');
+  return {lines:lines.length, disallows, allows, sitemaps, agents, blocksAll, raw:content};
+}
+
+// ─── PARSE SITEMAP ─────────────────────────────────────────────────────────────
+function parseSitemap(content){
+  if(!content) return null;
+  const isIndex = content.includes('<sitemapindex');
+  const urlCount = (content.match(/<url>/g)||[]).length;
+  const sitemapCount = (content.match(/<sitemap>/g)||[]).length;
+  const lastmods = [...content.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map(m=>m[1]);
+  const latestMod = lastmods.sort().reverse()[0] || '';
+  const hasImages = content.includes('<image:image');
+  const hasNews   = content.includes('<news:news');
+  return {isIndex, urlCount, sitemapCount, lastmods:lastmods.length, latestMod, hasImages, hasNews};
+}
+
+// ─── START AUDIT ───────────────────────────────────────────────────────────────
+async function startAudit(){
+  let url = document.getElementById('urlInput').value.trim();
+  if(!url){ alert('Wpisz adres URL'); return; }
+  if(!/^https?:\/\//.test(url)) url = 'https://'+url;
+  // Usuń trailing slash dla plików technicznych ale zostaw dla głównej
+  const base = url.replace(/\/$/, '');
+  const domainBase = 'https://' + url.replace(/^https?:\/\//,'').split('/')[0];
+
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('progWrap').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('results').innerHTML = '';
+
+  // Krok 0: pobierz HTML
+  setStep(0);
+  document.getElementById('progLabel').textContent = 'Pobieranie HTML strony…';
+  const {ok, html, source} = await fetchHTML(url);
+
+  if(!ok || !html){
+    document.getElementById('progWrap').style.display = 'none';
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').innerHTML = `
+      <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:12px;padding:2rem;text-align:center;color:var(--red)">
+        <div style="font-size:2rem;margin-bottom:.5rem">⚠</div>
+        <strong style="font-size:1rem">Nie udało się pobrać HTML strony</strong>
+        <p style="margin-top:.5rem;font-size:.85rem;color:var(--text2)">
+          Sprawdź czy adres URL jest poprawny i strona jest publicznie dostępna.<br>
+          Możliwe przyczyny: serwer blokuje boty, strona wymaga logowania, błędny URL.
+        </p>
+      </div>`;
+    document.getElementById('runBtn').disabled = false;
+    return;
+  }
+
+  setStep(1);
+  document.getElementById('progLabel').textContent = 'Parsowanie meta tagów…';
+  await sleep(100);
+  const data = parseHTML(html, url);
+
+  setStep(2);
+  document.getElementById('progLabel').textContent = 'Analiza nagłówków i treści…';
+  await sleep(100);
+
+  setStep(3);
+  document.getElementById('progLabel').textContent = 'Skanowanie obrazów i linków…';
+  await sleep(100);
+
+  // Krok 4: pliki techniczne
+  setStep(4);
+  document.getElementById('progLabel').textContent = 'Sprawdzanie robots.txt, sitemap, llms.txt…';
+
+  const [robotsRes, sitemapRes, llmsRes, adsTxtRes] = await Promise.all([
+    fetchFile(domainBase + '/robots.txt'),
+    fetchFile(domainBase + '/sitemap.xml'),
+    fetchFile(domainBase + '/llms.txt'),
+    fetchFile(domainBase + '/ads.txt'),
+  ]);
+
+  const robotsData  = robotsRes.ok  ? parseRobots(robotsRes.content)   : null;
+  const sitemapData = sitemapRes.ok ? parseSitemap(sitemapRes.content)  : null;
+
+  setStep(5);
+  document.getElementById('progLabel').textContent = 'Generowanie raportu…';
+  await sleep(150);
+
+  document.getElementById('progWrap').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  buildReport(url, data, source, robotsData, sitemapData, llmsRes.ok, adsTxtRes.ok);
+  document.getElementById('runBtn').disabled = false;
+}
+
+// ─── BUILD REPORT ──────────────────────────────────────────────────────────────
+function buildReport(url, d, source, robots, sitemap, hasLlms, hasAds){
+  const domain = url.replace(/^https?:\/\//,'').split('/')[0];
+
+  // ── Oblicz ogólny wynik ──
+  let pts=0, max=0;
+  function chk(val,w){ max+=w; if(val) pts+=w; }
+  chk(d.title.length>=50&&d.title.length<=60, 15);
+  chk(d.metaDesc.length>=120&&d.metaDesc.length<=160, 15);
+  chk(d.h1s.length===1, 12);
+  chk(d.h2s.length>0, 8);
+  chk(d.imgsNoAlt===0, 10);
+  chk(d.canonical.length>0, 8);
+  chk(!d.noindex, 8);
+  chk(d.lang.length>0, 5);
+  chk(d.viewport.length>0, 5);
+  chk(d.schemas.length>0, 5);
+  chk(d.wordCount>=300, 5);
+  chk(!!d.og['og:image'], 4);
+  chk(!!d.og['og:title'], 3);
+  chk(d.favicon, 3);
+  chk(!!robots, 5);
+  chk(!!sitemap, 5);
+  const score = Math.round((pts/max)*100);
+  const scoreCls = score>=80?'score-good':score>=55?'score-med':'score-bad';
+
+  // ── Rekomendacje ──
+  const recs = [];
+  if(!d.title)                                     recs.push({t:'Brak tagu <title>',p:'h'});
+  else if(d.title.length<50||d.title.length>60)    recs.push({t:`Tytuł: ${d.title.length} znaków (idealne 50–60)`,p:'m'});
+  if(!d.metaDesc)                                  recs.push({t:'Brak meta description',p:'h'});
+  else if(d.metaDesc.length<120||d.metaDesc.length>160) recs.push({t:`Meta description: ${d.metaDesc.length} znaków (idealne 120–160)`,p:'m'});
+  if(d.h1s.length===0)                             recs.push({t:'Brak nagłówka H1',p:'h'});
+  else if(d.h1s.length>1)                          recs.push({t:`${d.h1s.length} nagłówki H1 — powinien być dokładnie jeden`,p:'m'});
+  if(d.imgsNoAlt>0)                                recs.push({t:`${d.imgsNoAlt} obrazów bez atrybutu alt`,p:'m'});
+  if(!d.canonical)                                 recs.push({t:'Brak tagu canonical',p:'l'});
+  if(!d.lang)                                      recs.push({t:'Brak atrybutu lang na <html>',p:'l'});
+  if(!d.viewport)                                  recs.push({t:'Brak meta viewport',p:'h'});
+  if(d.schemas.length===0)                         recs.push({t:'Brak danych strukturalnych Schema.org',p:'m'});
+  if(d.wordCount<300)                              recs.push({t:`Mało treści: ${d.wordCount} słów (minimum 300)`,p:'m'});
+  if(!d.og['og:image'])                            recs.push({t:'Brak og:image (Social Media)',p:'l'});
+  if(!d.og['og:title'])                            recs.push({t:'Brak og:title (Social Media)',p:'l'});
+  if(!robots)                                      recs.push({t:'Brak pliku robots.txt',p:'m'});
+  if(!sitemap)                                     recs.push({t:'Brak pliku sitemap.xml',p:'m'});
+  if(d.noindex)                                    recs.push({t:'Strona ma ustawiony NOINDEX!',p:'h'});
+  if(!hasLlms)                                     recs.push({t:'Brak pliku llms.txt (GEO)',p:'l'});
+
+  const rH=recs.filter(r=>r.p==='h'), rM=recs.filter(r=>r.p==='m'), rL=recs.filter(r=>r.p==='l');
+
+  function ci(ok,cls=''){
+    if(ok===true)  return `<div class="ci ok ${cls}">✓</div>`;
+    if(ok===false) return `<div class="ci fail ${cls}">✗</div>`;
+    if(ok==='warn')return `<div class="ci warn ${cls}">!</div>`;
+    return `<div class="ci info ${cls}">i</div>`;
+  }
+  function p(cls){ return `<span class="ptag p${cls}">${cls==='h'?'Wysoki':cls==='m'?'Średni':'Niski'}</span>`; }
+
+  // Kolor paska tytułu
+  const titleLen=d.title.length;
+  const titleColor=titleLen>=50&&titleLen<=60?'#16a34a':titleLen>=40?'#b45309':'#dc2626';
+  const descLen=d.metaDesc.length;
+  const descColor=descLen>=120&&descLen<=160?'#16a34a':descLen>=80?'#b45309':'#dc2626';
+
+  document.getElementById('results').innerHTML = `
+<div class="print-hdr">
+  <strong>Raport SEO — ${domain}</strong> · ${new Date().toLocaleDateString('pl-PL',{year:'numeric',month:'long',day:'numeric'})}
+</div>
+
+<!-- SCORE SUMMARY -->
+<div class="score-summary">
+  <div class="score-circle ${scoreCls}">${score}<span style="font-size:.55rem;margin-top:1px">/100</span></div>
+  <div class="score-info">
+    <h2>${domain}</h2>
+    <p>${score>=80?'Strona jest dobrze zoptymalizowana pod SEO.':score>=55?'Strona wymaga kilku poprawek SEO.':'Strona wymaga istotnych poprawek SEO.'}</p>
+    <div class="score-pills">
+      ${rH.length?`<span class="pill" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)">${rH.length} pilne</span>`:''}
+      ${rM.length?`<span class="pill" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)">${rM.length} ważne</span>`:''}
+      ${rL.length?`<span class="pill" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)">${rL.length} drobne</span>`:''}
+    </div>
+    <div style="margin-top:.6rem;display:flex;gap:.5rem;flex-wrap:wrap">
+      <button class="btn btn-primary no-print" onclick="window.print()">⬇ Eksportuj PDF</button>
+      <span style="font-size:.75rem;color:var(--text3);display:flex;align-items:center">Źródło: ${source==='direct'?'bezpośredni fetch':'proxy allorigins'}</span>
+    </div>
+  </div>
+</div>
+
+<!-- REKOMENDACJE -->
+<div class="section open">
+  <div class="sec-hdr" onclick="toggle(this)">
+    <span class="sec-icon">📋</span>
+    <h3>Rekomendacje</h3>
+    <span class="sec-badge ${rH.length?'sb-red':rM.length?'sb-amber':'sb-green'}">${recs.length} zadań</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="sec-body">
+    ${rH.length?`<div style="margin-bottom:.75rem"><div style="font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">🔴 Wysoki priorytet</div>${rH.map(r=>`<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem .75rem;background:var(--red-bg);border:1px solid var(--red-border);border-radius:7px;margin-bottom:.35rem;font-size:.84rem"><span style="color:var(--red)">✗</span><span>${r.t}</span></div>`).join('')}</div>`:''}
+    ${rM.length?`<div style="margin-bottom:.75rem"><div style="font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">🟡 Średni priorytet</div>${rM.map(r=>`<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem .75rem;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:7px;margin-bottom:.35rem;font-size:.84rem"><span style="color:var(--amber)">!</span><span>${r.t}</span></div>`).join('')}</div>`:''}
+    ${rL.length?`<div><div style="font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">🟢 Niski priorytet</div>${rL.map(r=>`<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem .75rem;background:var(--green-bg);border:1px solid var(--green-border);border-radius:7px;margin-bottom:.35rem;font-size:.84rem"><span style="color:var(--green)">↓</span><span>${r.t}</span></div>`).join('')}</div>`:''}
+    ${recs.length===0?`<div style="color:var(--green);font-size:.9rem;padding:.5rem 0">✓ Wszystko wygląda dobrze!</div>`:''}
+  </div>
+</div>
+
+<!-- TYTUŁ I META -->
+<div class="section open">
+  <div class="sec-hdr" onclick="toggle(this)">
+    <span class="sec-icon">🔤</span>
+    <h3>Tytuł i Meta Description</h3>
+    <span class="sec-badge ${d.title&&d.metaDesc?'sb-green':d.title||d.metaDesc?'sb-amber':'sb-red'}">${d.title&&d.metaDesc?'OK':'Popraw'}</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="sec-body">
+    <!-- Tytuł -->
+    <div class="cr">
+      ${ci(d.title?(titleLen>=50&&titleLen<=60?true:'warn'):false)}
+      <div class="cc">
+        <strong>Tag &lt;title&gt;${d.title&&!(titleLen>=50&&titleLen<=60)?p('m'):''}</strong>
+        ${d.title
+          ? `<p><code>${d.title}</code></p>
+             <div class="char-bar">
+               <div class="char-track"><div class="char-fill" style="width:${Math.min(100,(titleLen/65)*100)}%;background:${titleColor}"></div></div>
+               <div class="char-labels"><span style="color:${titleColor};font-weight:600">${titleLen} znaków</span><span style="color:var(--text3)">idealne: 50–60</span></div>
+             </div>`
+          : `<p style="color:var(--red)">Brak tagu &lt;title&gt;! Krytyczny błąd SEO.</p>`}
+      </div>
+    </div>
+    <!-- Meta description -->
+    <div class="cr">
+      ${ci(d.metaDesc?(descLen>=120&&descLen<=160?true:'warn'):false)}
+      <div class="cc">
+        <strong>Meta Description${d.metaDesc&&!(descLen>=120&&descLen<=160)?p('m'):''}</strong>
+        ${d.metaDesc
+          ? `<p><code>${d.metaDesc}</code></p>
+             <div class="char-bar">
+               <div class="char-track"><div class="char-fill" style="width:${Math.min(100,(descLen/165)*100)}%;background:${descColor}"></div></div>
+               <div class="char-labels"><span style="color:${descColor};font-weight:600">${descLen} znaków</span><span style="color:var(--text3)">idealne: 120–160</span></div>
+             </div>`
+          : `<p style="color:var(--red)">Brak meta description! Dodaj w Yoast SEO.</p>`}
+      </div>
+    </div>
+    <!-- SERP Preview -->
+    <div class="cr">
+      ${ci('info')}
+      <div class="cc">
+        <strong>Podgląd w wynikach Google (SERP)</strong>
+        <div class="serp">
+          <div class="serp-domain">🌐 ${domain} ›</div>
+          <div class="serp-title">${d.title||'(brak tytułu)'}</div>
+          <div class="serp-url">https://${domain}/</div>
+          <div class="serp-desc">${d.metaDesc||'(brak meta description — Google wygeneruje opis automatycznie)'}</div>
+        </div>
+        <span class="serp-note ${titleLen>=50&&titleLen<=60?'sn-ok':titleLen>0?'sn-warn':'sn-fail'}">
+          Tytuł: ${titleLen} znaków ${titleLen>=50&&titleLen<=60?'✓ OK':titleLen>60?'— za długi':'— za krótki'}
+        </span>
+        ${d.metaDesc?`<span class="serp-note ${descLen>=120&&descLen<=160?'sn-ok':'sn-warn'}" style="margin-left:.4rem">
+          Opis: ${descLen} znaków ${descLen>=120&&descLen<=160?'✓ OK':descLen>160?'— za długi':'— za krótki'}
+        </span>`:''}
+      </div>
+    </div>
+    <!-- Meta keywords -->
+    ${d.metaKw?`<div class="cr"><div class="ci info">i</div><div class="cc"><strong>Meta Keywords</strong><p><code>${d.metaKw}</code></p><p style="color:var(--text3);font-size:.78rem">Google ignoruje meta keywords od 2009 roku.</p></div></div>`:''}
+  </div>
+</div>
+
+<!-- NAGŁÓWKI -->
+<div class="section open">
+  <div class="sec-hdr" onclick="toggle(this)">
+    <span class="sec-icon">📑</span>
+    <h3>Struktura nagłówków</h3>
+    <span class="sec-badge ${d.h1s.length===1&&d.h2s.length>0?'sb-green':d.h1s.length>0?'sb-amber':'sb-red'}">H1:${d.h1s.length} H2:${d.h2s.length} H3:${d.h3s.length}</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="sec-body">
+    <div class="cr">
+      ${ci(d.h1s.length===1?true:d.h1s.length===0?false:'warn')}
+      <div class="cc">
+        <strong>Tag H1${d.h1s.length!==1?p(d.h1s.length===0?'h':'m'):''}</strong>
+        ${d.h1s.length===0?'<p style="color:var(--red)">Brak H1! Każda strona powinna mieć dokładnie jeden.</p>':
+          d.h1s.length>1?`<p style="color:var(--amber)">Znaleziono ${d.h1s.length} tagów H1 — powinien być tylko jeden.</p>`:
+          `<p><code>${d.h1s[0].text}</code></p>`}
+      </div>
+    </div>
+    <div class="cr">
+      ${ci(d.h2s.length>0?true:'warn')}
+      <div class="cc">
+        <strong>Nagłówki H2 (${d.h2s.length})${d.h2s.length===0?p('m'):''}</strong>
+        ${d.h2s.length===0?'<p style="color:var(--amber)">Brak tagów H2 — dodaj strukturę nagłówków.</p>':
+          `<p>${d.h2s.slice(0,5).map(h=>`<code style="display:block;margin:.15rem 0">${h.text}</code>`).join('')}${d.h2s.length>5?`<span style="color:var(--text3);font-size:.78rem">… i ${d.h2s.length-5} więcej</span>`:''}</p>`}
+      </div>
+    </div>
+    ${d.h3s.length>0?`
+    <div class="cr">
+      ${ci(true)}
+      <div class="cc">
+        <strong>Nagłówki H3 (${d.h3s.length})</strong>
+        <p>${d.h3s.slice(0,3).map(h=>`<code style="display:block;margin:.15rem 0">${h.text}</code>`).join('')}${d.h3s.length>3?`<span style="color:var(--text3);font-size:.78rem">… i ${d.h3s.length-3} więcej</span>`:''}</p>
+      </div>
+    </div>`:''}
+    ${d.headings.length>0?`
+    <div class="cr">
+      <div class="ci info">i</div>
+      <div class="cc">
+        <strong>Pełna hierarchia nagłówków</strong>
+        <table class="htable" style="margin-top:.5rem">
+          <tr><th>Tag</th><th>Treść</th></tr>
+          ${d.headings.slice(0,15).map(h=>`<tr><td><span class="htag">H${h.level}</span></td><td>${h.text}</td></tr>`).join('')}
+          ${d.headings.length>15?`<tr><td colspan="2" style="color:var(--text3);font-size:.78rem">… i ${d.headings.length-15} więcej</td></tr>`:''}
+        </table>
+      </div>
+    </div>`:''}
+  </div>
+</div>
+
+<!-- OBRAZY -->
+<div class="section open">
+  <div class="sec-hdr" onclick="toggle(this)">
+    <span class="sec-icon">🖼️</span>
+    <h3>Obrazy</h3>
+    <span class="sec-badge ${d.imgsNoAlt===0?'sb-green':'sb-amber'}">${d.allImgs} obrazów · ${d.imgsNoAlt} bez alt</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="sec-body">
+    <div class="cr">
+      ${ci(d.imgsNoAlt===0?true:false)}
+      <div class="cc">
+        <strong>Atrybuty ALT${d.imgsNoAlt>0?p('m'):''}</strong>
+        <p>Obrazy ogółem: <strong>${d.allImgs}</strong> · Bez alt: <strong style="color:${d.imgsNoAlt>0?'var(--red)':'var(--green)'}">${d.imgsNoAlt}</strong> · Pusty alt (dekoracyjne): <strong>${d.imgsEmptyAlt}</strong></p>
+      </div>
+    </div>
+    ${d.imgData.filter(i=>!i.hasAlt).length>0?`
+    <div class="cr">
+      <div class="ci fail">✗</div>
+      <div class="cc">
+        <strong>Obrazy bez atrybutu alt</strong>
+        ${d.imgData.filter(i=>!i.hasAlt).slice(0,5).map(i=>`<div class="img-item"><code>${i.src.substring(0,80)}</code></div>`).join('')}
+      </div>
+    </div>`:''}
+    ${d.imgData.filter(i=>!i.hasSize).length>0?`
+    <div class="cr">
+      <div class="ci warn">!</div>
+      <div class="cc">
+        <strong>Obrazy bez podanych wymiarów (width/height)${p('l')}</strong>
+        <p>Brak atrybutów width i height może powodować CLS (przesunięcie layoutu). Dotyczy ${d.imgData.filter(i=>!i.hasSize).length} obrazów.</p>
+      </div>
+    </div>`:''}
+    ${d.imgData.filter(i=>i.loading==='lazy').length>0?`
+    <div class="cr">
+      ${ci(true)}
+      <div class="cc">
+        <strong>Lazy loading</strong>
+        <p>${d.imgData.filter(i=>i.loading==='lazy').length} obrazów używa atrybutu <code>loading="lazy"</code> ✓</p>
+      </div>
+    </div>`:''}
+  </div>
+</div>
+
+<!-- LINKI -->
+<div class="section open">
+  <div class="sec-hdr" onclick="toggle(this)">
+    <span class="sec-icon">🔗</span>
+    <h3>Linki</h3>
+    <span class="sec-badge sb-blue">${d.internalLinks} wewn. · ${d.externalLinks} zewn.</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="sec-body">
+    <div class="links-grid">
+      <div class="links-box">
+        <div class="links-num c-green">${d.internalLinks}</div>
+        <div class="links-lbl">Linki wewnętrzne</div>
+      </div>
+      <div class="links-box">
+        <div class="links-num c-amber">${d.externalLinks}</div>
+        <div class="links-lbl">Linki zewnętrzne</div>
+      </div>
+    </div>
+    ${d.externalLinks>0?`
+    <div class="cr">
+      ${ci(d.nofollowLinks>=d.externalLinks*0.5?true:'warn')}
+      <div class="cc">
+        <strong>Atrybuty nofollow na linkach zewnętrznych</strong>
+        <p>Linki z nofollow: <strong>${d.nofollowLinks}</strong> z ${d.externalLinks} zewnętrznych. ${d.nofollowLinks<d.externalLinks?'Rozważ dodanie rel="nofollow" do linków sponsorowanych i afiliacyjnych.':''}</p>
+      </div>
+    </div>
+    ${d.externalLinkData.length>0?`
+    <div class="cr">
+      <div class="ci info">i</div>
+      <div class="cc">
+        <strong>Linki zewnętrzne (pierwsze ${d.externalLinkData.length})</strong>
+        ${d.externalLinkData.map(l=>`
+          <div style="font-size:.79rem;padding:.2rem 0;border-bottom:1px solid var(--border);display:flex;gap:.5rem;align-items:center">
+            <span style="color:${l.nofollow?'var(--text3)':'var(--text)'}">${l.text||'(brak tekstu)'}</span>
+            <code style="font-size:.72rem;color:var(--text3)">${l.href.substring(0,50)}</code>
+            ${l.nofollow?'<span style="font-size:.65rem;background:var(--bg3);border:1px solid var(--border);padding:.1rem .3rem;border-radius:4px;color:var(--text3)">nofollow</span>':''}
+          </div>`).join('')}
+      </div>
+    </div>`:''}
+    `:''}
+  </div>
+</div>
+
+<!-- TECHNICZNE META -->
+<div class="section open">
+  <div class="sec-hdr" onclick="toggle(this)">
+    <span class="sec-icon">⚙️</span>
+    <h3>Techniczne meta tagi</h3>
+    <span class="sec-badge ${d.canonical&&!d.noindex&&d.viewport?'sb-green':'sb-amber'}">Techniczne</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="sec-body">
+    <div class="cr">
+      ${ci(d.canonical?true:'warn')}
+      <div class="cc">
+        <strong>Tag Canonical${!d.canonical?p('l'):''}</strong>
+        ${d.canonical?`<p><code>${d.canonical}</code></p>`:`<p>Brak tagu rel="canonical". Zalecany dla uniknięcia duplikatów treści.</p>`}
+      </div>
+    </div>
+    <div class="cr">
+      ${ci(!d.noindex?true:false)}
+      <div class="cc">
+        <strong>Meta Robots${d.noindex?p('h'):''}</strong>
+        ${d.robotsMeta?`<p>Wartość: <code>${d.robotsMeta}</code></p>`:'<p>Brak tagu meta robots — domyślnie strona jest indeksowalna.</p>'}
+        ${d.noindex?'<p style="color:var(--red);font-weight:600">⚠ NOINDEX aktywny — strona nie będzie indeksowana przez Google!</p>':''}
+      </div>
+    </div>
+    <div class="cr">
+      ${ci(d.viewport?true:false)}
+      <div class="cc">
+        <strong>Meta Viewport${!d.viewport?p('h'):''}</strong>
+        ${d.viewport?`<p><code>${d.viewport}</code></p>`:`<p style="color:var(--red)">Brak! Strona może nie być responsywna.</p>`}
+      </div>
+    </div>
+    <div class="cr">
+      ${ci(d.lang?true:'warn')}
+      <div class="cc">
+        <strong>Atrybut lang${!d.lang?p('l'):''}</strong>
+        ${d.lang?`<p>Język strony: <code>${d.lang}</code></p>`:`<p>Brak atrybutu lang na &lt;html&gt;. Dodaj <code>&lt;html lang="pl"&gt;</code></p>`}
+      </div>
+    </div>
+    <div class="cr">
+      ${ci(d.charset?true:'warn')}
+      <div class="cc">
+        <strong>Kodowanie znaków</strong>
+        ${d.charset?`<p><code>${d.charset}</code></p>`:'<p>Nie wykryto deklaracji kodowania.</p>'}
+      </div>
+    </div>
+    <div class="cr">
+      ${ci(d.favicon?true:'warn')}
+      <div class="cc">
+        <strong>Favicon${!d.favicon?p('l'):''}</strong>
+        ${d.favicon?`<p>Favicon zdefiniowany${d.faviconUrl?`: <code>${d.faviconUrl}</code>`:''}</p>`:'<p>Brak favicony.</p>'}
+      </div>
+    </div>
+    ${d.hreflangs.length>0?`
+    <div class="cr">
+      ${ci(true)}
+      <div class="cc">
+        <strong>Hreflang (${d.hreflangs.length} wariantów)</strong>
+        <p>${d.hreflangs.map(h=>`<code>${h.lang}</code>`).join(' ')}</p>
+      </div>
+    </div>`:''}
+    ${d.prevLink||d.nextLink?`
+    <div class="cr">
+      ${ci(true)}
+      <div class="cc">
+        <strong>Paginacja (prev/next)</strong>
+        ${d.prevLink?`<p>prev: <code>${d.prevLink}</code></p>`:''}
+        ${d.nextLink?`<p>next: <code>${d.nextLink}</code></p>`:''}
+      </div>
+    </div>`:''}
+  </div>
+</div>
+
+<!-- OPEN GRAPH & SOCIAL -->
+<div class="section open">
+  <div class="sec-hdr" onclick="toggle(this)">
+    <span class="sec-icon">📱</span>
+    <h3>Open Graph & Social Media</h3>
+    <span class="sec-badge ${d.og['og:title']&&d.og['og:description']&&d.og['og:image']?'sb-green':'sb-amber'}">${Object.keys(d.og).length} tagów OG</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="sec-body">
+    ${[
+      ['og:title','Tytuł OG',true],
+      ['og:description','Opis OG',true],
+      ['og:image','Obraz OG',true],
+      ['og:type','Typ OG',false],
+      ['og:url','URL OG',false],
+      ['og:site_name','Nazwa strony',false],
+      ['og:locale','Język',false],
+    ].map(([key,label,required])=>`
+      <div class="og-row">
+        <span class="og-key">${label} <code style="font-size:.7rem">${key}</code></span>
+        <span class="og-val ${d.og[key]?'':'missing'}">${d.og[key]||'(brak)'+(required?' ⚠':'')}</span>
+      </div>`).join('')}
+    ${Object.keys(d.tw).length>0?`
+    <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)">
+      <div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:.5rem">Twitter / X Card</div>
+      ${Object.entries(d.tw).map(([k,v])=>`
+        <div class="og-row">
+          <span class="og-key"><code style="font-size:.7rem">${k}</code></span>
+          <span class="og-val">${v}</span>
+        </div>`).join('')}
+    </div>`:''}
+  </div>
+</div>
+
+<!-- SCHEMA.ORG -->
+<div class="section open">
+  <div class="sec-hdr" onclick="toggle(this)">
+    <span class="sec-icon">🗂️</span>
+    <h3>Dane strukturalne Schema.org</h3>
+    <span class="sec-badge ${d.schemas.length>0?'sb-green':'sb-amber'}">${d.schemas.length>0?d.schemas.length+' typów':'Brak'}</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="sec-body">
+    <div class="cr">
+      ${ci(d.schemas.length>0?true:false)}
+      <div class="cc">
+        <strong>JSON-LD Schema${d.schemas.length===0?p('m'):''}</strong>
+        ${d.schemas.length>0
+          ?`<p>Wykryte typy:</p><div style="margin-top:.4rem">${d.schemas.map(s=>`<span class="schema-badge">${s}</span>`).join('')}</div>`
+          :`<p>Brak danych strukturalnych. Dodaj Schema.org dla Organization, BreadcrumbList i treści artykułów.</p>`}
+      </div>
+    </div>
+    ${d.schemas.length>0?`
+    <div class="cr">
+      <div class="ci info">i</div>
+      <div class="cc">
+        <strong>Walidacja</strong>
+        <p><a href="https://validator.schema.org/#url=${encodeURIComponent(url)}" target="_blank">Otwórz Schema Validator ↗</a> · <a href="https://search.google.com/test/rich-results?url=${encodeURIComponent(url)}" target="_blank">Google Rich Results Test ↗</a></p>
+      </div>
+    </div>`:''}
+  </div>
+</div>
+
+<!-- TREŚĆ -->
+<div class="section open">
+  <div class="sec-hdr" onclick="toggle(this)">
+    <span class="sec-icon">📝</span>
+    <h3>Treść strony</h3>
+    <span class="sec-badge ${d.wordCount>=300?'sb-green':'sb-amber'}">${d.wordCount} słów</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="sec-body">
+    <div class="cr">
+      ${ci(d.wordCount>=300?true:'warn')}
+      <div class="cc">
+        <strong>Liczba słów${d.wordCount<300?p('m'):''}</strong>
+        <p>Znaleziono <strong>${d.wordCount}</strong> słów.${d.wordCount<300?' Zalecane minimum to 300 słów dla stron głównych.':d.wordCount>2000?' Bogata treść — dobrze dla SEO.':' Wystarczająca ilość treści.'}</p>
+      </div>
+    </div>
+    <div class="cr">
+      <div class="ci info">i</div>
+      <div class="cc">
+        <strong>Stosunek tekstu do HTML</strong>
+        <p>Tekst stanowi <strong>${d.textRatio}%</strong> całego kodu HTML.${d.textRatio<10?' Niska wartość — strona może być zdominowana przez kod JavaScript/CSS.':''}</p>
+      </div>
+    </div>
+    ${d.author?`<div class="cr">${ci(true)}<div class="cc"><strong>Autor strony</strong><p><code>${d.author}</code></p></div></div>`:''}
+    ${d.publishedTime?`<div class="cr">${ci(true)}<div class="cc"><strong>Data publikacji</strong><p><code>${d.publishedTime}</code></p></div></div>`:''}
+    ${d.modifiedTime?`<div class="cr">${ci(true)}<div class="cc"><strong>Data modyfikacji</strong><p><code>${d.modifiedTime}</code></p></div></div>`:''}
+    ${d.generator?`<div class="cr"><div class="ci info">i</div><div class="cc"><strong>Generator / CMS</strong><p><code>${d.generator}</code></p></div></div>`:''}
+  </div>
+</div>
+
+<!-- PLIKI TECHNICZNE -->
+<div class="section open">
+  <div class="sec-hdr" onclick="toggle(this)">
+    <span class="sec-icon">🗺️</span>
+    <h3>Pliki techniczne</h3>
+    <span class="sec-badge ${robots&&sitemap?'sb-green':robots||sitemap?'sb-amber':'sb-red'}">${[robots?'robots.txt':null,sitemap?'sitemap':null,hasLlms?'llms.txt':null].filter(Boolean).join(' · ')||'Brak'}</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="sec-body">
+    <!-- robots.txt -->
+    <div class="cr">
+      ${ci(robots?!robots.blocksAll?true:'warn':false)}
+      <div class="cc">
+        <strong>robots.txt${!robots?p('m'):robots.blocksAll?p('h'):''}</strong>
+        ${robots
+          ?`<p>Reguły: <strong>${robots.lines}</strong> · Disallow: <strong>${robots.disallows.length}</strong> · Sitemap: <strong>${robots.sitemaps.length}</strong></p>
+            ${robots.blocksAll?`<p style="color:var(--red)">⚠ Robots.txt blokuje cały serwis (<code>Disallow: /</code>)!</p>`:''}
+            ${robots.sitemaps.length>0?`<p>Sitemap w robots.txt: ${robots.sitemaps.map(s=>`<code>${s}</code>`).join(', ')}</p>`:'<p style="color:var(--amber)">Brak odniesienia do sitemap w robots.txt</p>'}
+            <details style="margin-top:.5rem"><summary style="font-size:.78rem;cursor:pointer;color:var(--text3)">Pokaż zawartość</summary>
+            <pre style="margin-top:.4rem;background:var(--bg3);padding:.75rem;border-radius:6px;font-size:.75rem;overflow-x:auto;white-space:pre-wrap">${robots.raw.substring(0,800).replace(/</g,'&lt;')}</pre></details>`
+          :`<p>Brak pliku robots.txt. <a href="https://domain.com/robots.txt" target="_blank">Utwórz go</a> i dodaj odwołanie do sitemaps.</p>`}
+      </div>
+    </div>
+    <!-- sitemap.xml -->
+    <div class="cr">
+      ${ci(sitemap?true:false)}
+      <div class="cc">
+        <strong>sitemap.xml${!sitemap?p('m'):''}</strong>
+        ${sitemap
+          ?`<p>${sitemap.isIndex?`Sitemap Index (${sitemap.sitemapCount} pliki)`:`Pojedyncza sitemap`} · URL-e: <strong>${sitemap.urlCount}</strong>${sitemap.latestMod?` · Ostatnia modyfikacja: <strong>${sitemap.latestMod.substring(0,10)}</strong>`:''}</p>
+            ${sitemap.hasImages?'<p>Zawiera sitemap obrazów ✓</p>':''}
+            ${sitemap.hasNews?'<p>Zawiera sitemap wiadomości ✓</p>':''}`
+          :`<p>Brak sitemap.xml. Wygeneruj automatycznie przez Yoast SEO lub Rank Math.</p>`}
+      </div>
+    </div>
+    <!-- llms.txt -->
+    <div class="cr">
+      ${ci(hasLlms?true:'warn')}
+      <div class="cc">
+        <strong>llms.txt${!hasLlms?p('l'):''}</strong>
+        ${hasLlms?`<p>Plik llms.txt istnieje ✓ — strona jest zoptymalizowana dla modeli AI.</p>`:`<p>Brak pliku llms.txt. Zalecany dla widoczności w modelach AI (ChatGPT, Perplexity). Utwórz pod adresem <code>/llms.txt</code></p>`}
+      </div>
+    </div>
+    <!-- ads.txt -->
+    <div class="cr">
+      <div class="ci info">i</div>
+      <div class="cc">
+        <strong>ads.txt</strong>
+        <p>${hasAds?'Plik ads.txt istnieje — strona korzysta z reklam programatycznych.':'Brak ads.txt (opcjonalne — wymagane tylko przy reklamach programatycznych).'}</p>
+      </div>
+    </div>
+    <!-- Linki do sprawdzenia -->
+    <div style="margin-top:.75rem;display:flex;flex-wrap:wrap;gap:.4rem">
+      <a href="${'https://'+url.replace(/^https?:\/\//,'').split('/')[0]+'/robots.txt'}" target="_blank" class="btn">robots.txt ↗</a>
+      <a href="${'https://'+url.replace(/^https?:\/\//,'').split('/')[0]+'/sitemap.xml'}" target="_blank" class="btn">sitemap.xml ↗</a>
+      <a href="${'https://'+url.replace(/^https?:\/\//,'').split('/')[0]+'/llms.txt'}" target="_blank" class="btn">llms.txt ↗</a>
+    </div>
+  </div>
+</div>
+
+<!-- ZASOBY STRONY -->
+<div class="section">
+  <div class="sec-hdr" onclick="toggle(this)">
+    <span class="sec-icon">📦</span>
+    <h3>Zasoby strony</h3>
+    <span class="sec-badge sb-blue">CSS: ${d.cssFiles} · JS: ${d.jsFiles}</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="sec-body">
+    <div class="cr"><div class="ci info">i</div><div class="cc"><strong>Pliki CSS</strong><p>Zewnętrzne arkusze stylów: <strong>${d.cssFiles}</strong></p></div></div>
+    <div class="cr"><div class="ci info">i</div><div class="cc"><strong>Pliki JavaScript</strong><p>Zewnętrzne skrypty: <strong>${d.jsFiles}</strong> · Inline scripts: <strong>${d.inlineScripts}</strong></p></div></div>
+    ${d.iframes>0?`<div class="cr"><div class="ci warn">!</div><div class="cc"><strong>Iframe</strong><p>Znaleziono <strong>${d.iframes}</strong> elementów iframe. Treść w iframe nie jest indeksowana przez Google.</p></div></div>`:''}
+    ${d.themeColor?`<div class="cr"><div class="ci info">i</div><div class="cc"><strong>Kolor motywu (theme-color)</strong><p><code>${d.themeColor}</code></p></div></div>`:''}
+    ${d.forms>0?`<div class="cr"><div class="ci info">i</div><div class="cc"><strong>Formularze</strong><p>Liczba formularzy: <strong>${d.forms}</strong> · Pola formularzy: <strong>${d.inputs}</strong></p></div></div>`:''}
+  </div>
+</div>
+
+<div style="text-align:center;padding:1.5rem 0;color:var(--text3);font-size:.76rem">
+  ${domain} · ${new Date().toLocaleDateString('pl-PL')} · Źródło: HTML strony · Proxy: allorigins.win
+</div>`;
+
+  document.querySelectorAll('.section.open .sec-body').forEach(b => b.style.display='block');
+}
+
+function toggle(hdr){
+  const sec = hdr.parentElement;
+  sec.classList.toggle('open');
+  sec.querySelector('.sec-body').style.display = sec.classList.contains('open')?'block':'none';
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter') startAudit();
+});
+</script>
+</body>
+</html>
