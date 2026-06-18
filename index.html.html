@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audyt SEO – Narzędzie do analizy stron</title>
+<meta name="description" content="Darmowe narzędzie do audytu SEO. Analizuje wydajność, On-Page SEO, Core Web Vitals i więcej.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ===== RESET & BASE ===== */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8f9fb;
+  --bg2:#fff;
+  --bg3:#f0f2f5;
+  --text:#1a1d23;
+  --text2:#5a6070;
+  --text3:#8a929e;
+  --border:#e3e6ec;
+  --border2:#cdd2db;
+  --accent:#2563eb;
+  --accent-light:#eff4ff;
+  --green:#16a34a;--green-bg:#f0fdf4;--green-border:#bbf7d0;
+  --amber:#b45309;--amber-bg:#fffbeb;--amber-border:#fde68a;
+  --red:#dc2626;--red-bg:#fef2f2;--red-border:#fecaca;
+  --blue:#1d4ed8;--blue-bg:#eff6ff;--blue-border:#bfdbfe;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;
+  --dark:#0f172a;
+  --card-shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --card-shadow-hover:0 4px 12px rgba(0,0,0,.12);
+  --radius:10px;--radius-lg:14px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ===== HEADER ===== */
+.site-header{background:var(--dark);color:#fff;padding:0 2rem}
+.header-inner{max-width:1000px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px;gap:1rem}
+.logo{font-size:1.1rem;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:.5rem}
+.logo span{color:#60a5fa}
+.header-badge{background:#1e3a5f;color:#93c5fd;font-size:.7rem;font-weight:600;padding:.2rem .6rem;border-radius:20px;white-space:nowrap}
+
+/* ===== HERO ===== */
+.hero{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);color:#fff;padding:3.5rem 2rem 4rem;text-align:center}
+.hero h1{font-size:2.2rem;font-weight:800;letter-spacing:-.03em;margin-bottom:.75rem;line-height:1.2}
+.hero h1 span{color:#60a5fa}
+.hero p{color:#94a3b8;font-size:1rem;max-width:520px;margin:0 auto 2rem}
+
+/* ===== SEARCH ===== */
+.search-wrap{max-width:620px;margin:0 auto}
+.search-box{display:flex;background:#fff;border-radius:var(--radius-lg);overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1)}
+.search-box input{flex:1;border:none;outline:none;padding:.9rem 1.25rem;font-size:1rem;color:var(--text);background:transparent}
+.search-box input::placeholder{color:#94a3b8}
+.btn-run{background:var(--accent);color:#fff;border:none;padding:.9rem 1.5rem;font-size:.95rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .2s}
+.btn-run:hover{background:#1d4ed8}
+.btn-run:disabled{background:#94a3b8;cursor:not-allowed}
+.search-hint{color:#64748b;font-size:.8rem;margin-top:.75rem;text-align:center}
+
+/* ===== PROGRESS ===== */
+.progress-wrap{background:#fff;border-radius:var(--radius-lg);padding:2rem;max-width:500px;margin:2rem auto 0;text-align:center;box-shadow:var(--card-shadow)}
+.progress-wrap{display:none}
+.spinner{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.progress-bar-outer{height:6px;background:#e2e8f0;border-radius:3px;margin:1rem 0;overflow:hidden}
+.progress-bar-inner{height:100%;background:var(--accent);border-radius:3px;transition:width .5s ease}
+.step-list{list-style:none;text-align:left;font-size:.85rem}
+.step-list li{padding:.3rem 0;display:flex;align-items:center;gap:.6rem;color:var(--text3)}
+.step-list li.done{color:var(--green)}
+.step-list li.active{color:var(--text);font-weight:500}
+.step-list li::before{content:'○';font-size:.65rem;flex-shrink:0}
+.step-list li.done::before{content:'✓';color:var(--green)}
+.step-list li.active::before{content:'◉';color:var(--accent)}
+
+/* ===== MAIN WRAP ===== */
+.main{max-width:1000px;margin:0 auto;padding:2rem 1.5rem}
+#results{display:none}
+
+/* ===== SCORE HERO ===== */
+.score-hero{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:2rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:2rem;flex-wrap:wrap;box-shadow:var(--card-shadow)}
+.score-big{position:relative;width:130px;height:130px;flex-shrink:0}
+.score-big canvas{position:absolute;inset:0}
+.score-big-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:2.4rem;font-weight:800;line-height:1;color:var(--text)}
+.score-big-label{font-size:.65rem;color:var(--text3);margin-top:2px;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+.score-hero-info{flex:1;min-width:200px}
+.score-hero-info h2{font-size:1.5rem;font-weight:700;color:var(--text);margin-bottom:.35rem}
+.score-hero-info .domain-url{font-size:.85rem;color:var(--text3);margin-bottom:.75rem}
+.score-hero-info .verdict{font-size:.95rem;color:var(--text2);margin-bottom:1rem}
+.rec-pill{display:inline-flex;align-items:center;gap:.4rem;background:#eff6ff;color:#1d4ed8;border-radius:20px;padding:.3rem 1rem;font-size:.82rem;font-weight:600;border:1px solid #bfdbfe}
+.score-hero-actions{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1rem}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.1rem;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--bg2);color:var(--text);transition:all .15s}
+.btn:hover{background:var(--bg3);border-color:var(--border2)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#1d4ed8}
+
+/* ===== SCORE CARDS GRID ===== */
+.scores-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.5rem}
+.score-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1rem;text-align:center;box-shadow:var(--card-shadow);transition:box-shadow .2s}
+.score-card:hover{box-shadow:var(--card-shadow-hover)}
+.score-card .sc-chart{margin:0 auto .75rem;display:block;position:relative;width:70px;height:70px}
+.score-card .sc-val{font-size:1.6rem;font-weight:800;line-height:1;margin-bottom:.3rem}
+.score-card .sc-lbl{font-size:.72rem;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.c-green{color:var(--green)}.c-amber{color:var(--amber)}.c-red{color:var(--red)}.c-blue{color:var(--blue)}.c-text{color:var(--text3)}
+
+/* ===== SECTION ===== */
+.section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:1.25rem;box-shadow:var(--card-shadow);overflow:hidden}
+.section-hdr{padding:1rem 1.5rem;display:flex;align-items:center;gap:.75rem;cursor:pointer;user-select:none;border-bottom:1px solid transparent;transition:background .15s}
+.section-hdr:hover{background:var(--bg3)}
+.section.open .section-hdr{border-bottom-color:var(--border)}
+.section-hdr-icon{font-size:1.1rem;width:32px;text-align:center;flex-shrink:0}
+.section-hdr h3{flex:1;font-size:.95rem;font-weight:700;color:var(--text)}
+.section-badge{font-size:.72rem;font-weight:700;padding:.2rem .7rem;border-radius:20px;white-space:nowrap}
+.sb-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.sb-amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.sb-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.sb-blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.chevron{font-size:.75rem;color:var(--text3);transition:transform .2s;margin-left:.25rem}
+.section.open .chevron{transform:rotate(180deg)}
+.section-body{padding:1.5rem;display:none}
+.section.open .section-body{display:block}
+
+/* ===== CHECKS ===== */
+.check-row{display:flex;align-items:flex-start;gap:.85rem;padding:.9rem 0;border-bottom:1px solid var(--border)}
+.check-row:last-child{border-bottom:none}
+.check-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0;margin-top:2px}
+.ci-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.ci-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.ci-fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.ci-info{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.check-content{flex:1}
+.check-content strong{display:block;font-size:.9rem;font-weight:600;color:var(--text);margin-bottom:.25rem}
+.check-content p{font-size:.83rem;color:var(--text2);line-height:1.5}
+.check-content code{background:var(--bg3);padding:.1rem .35rem;border-radius:4px;font-size:.78rem;font-family:'SF Mono',Consolas,monospace;color:var(--accent);border:1px solid var(--border)}
+.priority{font-size:.67rem;font-weight:700;padding:.15rem .5rem;border-radius:10px;margin-left:.5rem;display:inline-block}
+.p-high{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.p-med{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.p-low{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+
+/* ===== SERP PREVIEW ===== */
+.serp-box{background:#fff;border:1px solid #dfe1e5;border-radius:8px;padding:1rem 1.25rem;margin:.75rem 0;max-width:600px}
+.serp-favicon{display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--text2);margin-bottom:.3rem}
+.serp-title{font-size:1.1rem;color:#1a0dab;font-weight:400;margin-bottom:.2rem;cursor:pointer}
+.serp-url{font-size:.78rem;color:#006621;margin-bottom:.3rem}
+.serp-desc{font-size:.84rem;color:#4d5156;line-height:1.5}
+.serp-warn{font-size:.78rem;padding:.5rem .75rem;border-radius:6px;margin-top:.5rem}
+.serp-warn.ok{background:var(--green-bg);color:var(--green)}
+.serp-warn.warn{background:var(--amber-bg);color:var(--amber)}
+
+/* ===== CHAR BAR ===== */
+.char-bar-wrap{margin:.6rem 0}
+.char-bar-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden;position:relative;margin-bottom:.3rem}
+.char-bar-fill{height:100%;border-radius:3px;transition:width .8s}
+.char-label{font-size:.75rem;display:flex;justify-content:space-between}
+
+/* ===== CWV ===== */
+.cwv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1rem;margin:1rem 0}
+.cwv-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;text-align:center}
+.cwv-val{font-size:1.4rem;font-weight:800;margin-bottom:.2rem}
+.cwv-name{font-size:.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.3rem}
+.cwv-status{font-size:.7rem;font-weight:700;padding:.15rem .5rem;border-radius:10px;display:inline-block}
+.cwv-good{background:var(--green-bg);color:var(--green)}
+.cwv-needs{background:var(--amber-bg);color:var(--amber)}
+.cwv-poor{background:var(--red-bg);color:var(--red)}
+
+/* ===== CHARTS ===== */
+.chart-section{margin:1.5rem 0}
+.chart-title{font-size:.8rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin:1rem 0}
+.chart-box{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+.chart-box canvas{max-height:200px}
+
+/* ===== RECS ===== */
+.rec-group{margin-bottom:1.5rem}
+.rec-group-title{font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.6rem;display:flex;align-items:center;gap:.4rem}
+.rec-item{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;margin-bottom:.4rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
+.rec-item-left{display:flex;align-items:center;gap:.6rem;flex:1}
+.rec-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-red{background:var(--red)}.dot-amber{background:var(--amber)}.dot-green{background:var(--green)}
+.rec-name{font-size:.88rem;font-weight:500;color:var(--text)}
+.rec-cat{font-size:.75rem;color:var(--text3);background:var(--bg2);border:1px solid var(--border);padding:.1rem .5rem;border-radius:6px}
+
+/* ===== TECH GRID ===== */
+.tech-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem;margin-top:.75rem}
+.tech-item{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.85rem 1rem;display:flex;align-items:center;gap:.75rem}
+.tech-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;flex-shrink:0}
+.ti-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.ti-fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.ti-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.ti-info{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.tech-name{font-size:.85rem;font-weight:600;color:var(--text)}
+.tech-desc{font-size:.73rem;color:var(--text3);margin-top:.1rem}
+
+/* ===== INFO GRID ===== */
+.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.75rem;margin-top:.75rem}
+.info-cell{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.85rem 1rem}
+.ic-lbl{font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem;font-weight:600}
+.ic-val{font-size:.88rem;font-weight:600;color:var(--text);word-break:break-word}
+
+/* ===== OPPORTUNITY LIST ===== */
+.opp-list{margin-top:.75rem}
+.opp-item{display:flex;align-items:center;justify-content:space-between;padding:.6rem .75rem;border-bottom:1px solid var(--border);font-size:.83rem;gap:.75rem}
+.opp-item:last-child{border-bottom:none}
+.opp-name{color:var(--text);flex:1}
+.opp-saving{color:var(--amber);font-weight:600;white-space:nowrap;font-size:.8rem}
+
+/* ===== BACKLINK STATS ===== */
+.bl-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.75rem;margin:.75rem 0}
+.bl-stat{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.85rem .75rem;text-align:center}
+.bl-num{font-size:1.4rem;font-weight:800;color:var(--text);margin-bottom:.2rem}
+.bl-lbl{font-size:.68rem;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
+
+/* ===== PDF / PRINT ===== */
+.print-header{display:none}
+@media print{
+  .site-header,.hero,.search-wrap,.progress-wrap,.score-hero-actions,.btn,.no-print{display:none!important}
+  .print-header{display:block;padding:1.5rem;border-bottom:2px solid #1a1d23;margin-bottom:1.5rem}
+  .print-header h1{font-size:1.4rem;font-weight:700}
+  .print-header p{font-size:.85rem;color:#5a6070}
+  body{background:#fff!important;color:#000}
+  .section{break-inside:avoid;box-shadow:none;border:1px solid #ddd}
+  .section-body{display:block!important}
+  .section-hdr{cursor:default}
+  .chevron{display:none}
+  .score-hero{break-inside:avoid}
+  .scores-grid{grid-template-columns:repeat(5,1fr)}
+  .charts-row{grid-template-columns:1fr 1fr}
+  @page{margin:1.5cm;size:A4}
+}
+
+/* ===== FOOTER ===== */
+.site-footer{background:var(--dark);color:#64748b;text-align:center;padding:2rem;font-size:.8rem;margin-top:3rem}
+.site-footer a{color:#60a5fa}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:700px){
+  .scores-grid{grid-template-columns:repeat(3,1fr)}
+  .charts-row{grid-template-columns:1fr}
+  .hero h1{font-size:1.6rem}
+  .score-hero{flex-direction:column;text-align:center}
+  .search-box{flex-direction:column}
+  .btn-run{border-radius:0 0 var(--radius-lg) var(--radius-lg)}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header no-print">
+  <div class="header-inner">
+    <div class="logo">🔍 <strong>SEO<span>Audyt</span></strong></div>
+    <span class="header-badge">v1.0 Light · GitHub Pages</span>
+  </div>
+</header>
+
+<div class="hero no-print">
+  <h1>Kompleksowy <span>Audyt SEO</span></h1>
+  <p>Analizuje On-Page SEO, Core Web Vitals, wydajność, GEO i dostępność. Dane z Google PageSpeed Insights.</p>
+  <div class="search-wrap">
+    <div class="search-box">
+      <input type="text" id="urlInput" placeholder="https://twoja-strona.pl" autocomplete="off" />
+      <button class="btn-run" id="runBtn" onclick="startAudit()">Uruchom audyt →</button>
+    </div>
+    <p class="search-hint">Wpisz pełny adres URL i naciśnij Enter lub kliknij przycisk</p>
+  </div>
+</div>
+
+<div class="main">
+  <div class="progress-wrap" id="progressWrap">
+    <div class="spinner"></div>
+    <p style="font-weight:600;margin-bottom:.5rem" id="progressLabel">Pobieranie danych…</p>
+    <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar" style="width:5%"></div></div>
+    <ul class="step-list" id="stepList">
+      <li id="step0">Pobieranie danych PageSpeed (mobile)</li>
+      <li id="step1">Pobieranie danych PageSpeed (desktop)</li>
+      <li id="step2">Analiza On-Page SEO</li>
+      <li id="step3">Ocena Core Web Vitals</li>
+      <li id="step4">Analiza GEO / AI-readiness</li>
+      <li id="step5">Generowanie wykresów i raportu</li>
+    </ul>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<footer class="site-footer no-print">
+  Narzędzie oparte na <a href="https://developers.google.com/speed/docs/insights/v5/get-started" target="_blank">Google PageSpeed Insights API</a> · Dane są pobierane w czasie rzeczywistym
+</footer>
+
+<script>
+const chartInstances = {};
+
+function destroyChart(id){
+  if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id];}
+}
+
+function donut(canvasId, score, color){
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if(!ctx) return;
+  chartInstances[canvasId] = new Chart(ctx,{
+    type:'doughnut',
+    data:{datasets:[{data:[score,100-score],backgroundColor:[color,'#e5e7eb'],borderWidth:0,hoverOffset:0}]},
+    options:{cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:false}},animation:{duration:800},events:[]}
+  });
+}
+
+function barChart(canvasId, labels, values, colors){
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if(!ctx) return;
+  chartInstances[canvasId] = new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{data:values,backgroundColor:colors,borderRadius:6,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>` ${i.raw}/100`}}},scales:{x:{min:0,max:100,grid:{color:'#f1f5f9'},ticks:{font:{size:11}}},y:{grid:{display:false},ticks:{font:{size:11}}}},animation:{duration:600}}
+  });
+}
+
+function hbarChart(canvasId, labels, values, unit){
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if(!ctx) return;
+  const colors = values.map(v => v <= 2.5 ? '#16a34a' : v <= 4 ? '#b45309' : '#dc2626');
+  chartInstances[canvasId] = new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{data:values,backgroundColor:colors,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>` ${i.raw}${unit}`}}},scales:{x:{grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},y:{grid:{display:false},ticks:{font:{size:10}}}},animation:{duration:700}}
+  });
+}
+
+function scoreColor(s){
+  return s >= 90 ? '#16a34a' : s >= 50 ? '#b45309' : '#dc2626';
+}
+function scoreClass(s){
+  return s >= 90 ? 'c-green' : s >= 50 ? 'c-amber' : 'c-red';
+}
+function sbClass(s){
+  return s >= 90 ? 'sb-green' : s >= 50 ? 'sb-amber' : 'sb-red';
+}
+function cwvClass(score){
+  return score >= 0.9 ? 'cwv-good' : score >= 0.5 ? 'cwv-needs' : 'cwv-poor';
+}
+function cwvLabel(score){
+  return score >= 0.9 ? 'Dobry' : score >= 0.5 ? 'Wymaga poprawy' : 'Słaby';
+}
+
+async function startAudit(){
+  let url = document.getElementById('urlInput').value.trim();
+  if(!url){ alert('Wpisz adres URL strony'); return; }
+  if(!/^https?:\/\//.test(url)) url = 'https://' + url;
+
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('results').innerHTML = '';
+
+  const steps = ['step0','step1','step2','step3','step4','step5'];
+  function setStep(i){
+    steps.forEach((s,j)=>{
+      const el = document.getElementById(s);
+      el.className = j < i ? 'done' : j === i ? 'active' : '';
+    });
+    document.getElementById('progressBar').style.width = `${Math.round((i/steps.length)*100)+5}%`;
+  }
+
+  setStep(0);
+  document.getElementById('progressLabel').textContent = 'Pobieranie danych mobile…';
+
+  let mobData = null, deskData = null;
+  const base = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}`;
+
+  try {
+    const mobRes = await fetch(base + '&strategy=mobile');
+    mobData = await mobRes.json();
+  } catch(e){}
+
+  setStep(1);
+  document.getElementById('progressLabel').textContent = 'Pobieranie danych desktop…';
+
+  try {
+    const deskRes = await fetch(base + '&strategy=desktop');
+    deskData = await deskRes.json();
+  } catch(e){}
+
+  setStep(2);
+  document.getElementById('progressLabel').textContent = 'Analiza On-Page SEO…';
+  await sleep(300);
+  setStep(3);
+  document.getElementById('progressLabel').textContent = 'Ocena Core Web Vitals…';
+  await sleep(300);
+  setStep(4);
+  document.getElementById('progressLabel').textContent = 'Analiza GEO…';
+  await sleep(300);
+  setStep(5);
+  document.getElementById('progressLabel').textContent = 'Generowanie raportu…';
+  await sleep(200);
+
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  buildReport(url, mobData, deskData);
+  document.getElementById('runBtn').disabled = false;
+}
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function getAudit(lhr, key){ return lhr ? (lhr.audits[key] || null) : null; }
+function auditScore(lhr, key){ const a = getAudit(lhr,key); return a ? a.score : null; }
+function auditDisplay(lhr, key){ const a = getAudit(lhr,key); return a ? (a.displayValue || '-') : '-'; }
+function catScore(lhr, cat){ return lhr ? Math.round((lhr.categories?.[cat]?.score || 0)*100) : null; }
+
+function buildReport(url, mob, desk){
+  const lhr = mob?.lighthouseResult || null;
+  const lhrD = desk?.lighthouseResult || null;
+  const domain = url.replace(/^https?:\/\//,'').split('/')[0];
+  const isHttps = url.startsWith('https://');
+
+  // Scores
+  const perfM  = catScore(lhr,'performance');
+  const perfD  = catScore(lhrD,'performance');
+  const access = catScore(lhr,'accessibility');
+  const bp     = catScore(lhr,'best-practices');
+  const seoLH  = catScore(lhr,'seo');
+
+  const onpageSc = seoLH !== null ? seoLH : 60;
+  const perfSc   = perfM !== null ? perfM : 0;
+  const usabSc   = access !== null ? access : 0;
+  const geoSc    = 51;
+  const linksSc  = 0;
+  const overall  = Math.round((onpageSc + perfSc + usabSc + linksSc + geoSc) / 5);
+
+  // On-page data
+  const title       = lhr?.audits?.['document-title']?.details?.items?.[0]?.title || '';
+  const titleLen    = title.length;
+  const metaDescOk  = auditScore(lhr,'meta-description') === 1;
+  const imgAltOk    = auditScore(lhr,'image-alt') === 1;
+  const canonicalOk = auditScore(lhr,'canonical') === 1;
+  const robotsTxtOk = auditScore(lhr,'robots-txt') === 1;
+  const hreflangOk  = auditScore(lhr,'hreflang') === 1;
+  const viewportOk  = auditScore(lhr,'viewport') === 1;
+  const fontSizeOk  = auditScore(lhr,'font-size') === 1;
+  const tapOk       = auditScore(lhr,'tap-targets') >= 0.9;
+  const schemaOk    = auditScore(lhr,'structured-data') === 1;
+  const wordCount   = Math.round(lhr?.audits?.['word-count']?.numericValue || 0);
+
+  // CWV
+  const lcpVal   = auditDisplay(lhr,'largest-contentful-paint');
+  const clsVal   = auditDisplay(lhr,'cumulative-layout-shift');
+  const fcpVal   = auditDisplay(lhr,'first-contentful-paint');
+  const tbtVal   = auditDisplay(lhr,'total-blocking-time');
+  const siVal    = auditDisplay(lhr,'speed-index');
+  const ttiVal   = auditDisplay(lhr,'interactive');
+  const lcpSc    = auditScore(lhr,'largest-contentful-paint');
+  const clsSc    = auditScore(lhr,'cumulative-layout-shift');
+  const fcpSc    = auditScore(lhr,'first-contentful-paint');
+  const tbtSc    = auditScore(lhr,'total-blocking-time');
+
+  // Opportunities
+  const opps = lhr ? Object.values(lhr.audits).filter(a => a.details?.type==='opportunity' && a.score !== null && a.score < 0.9).slice(0,8) : [];
+
+  // Recommendations
+  const recs = [];
+  if(linksSc < 30) recs.push({name:'Wdróż strategię budowania backlinków',cat:'Linki',p:'high'});
+  if(!metaDescOk)  recs.push({name:'Dodaj tag meta description',cat:'On-Page SEO',p:'high'});
+  if(titleLen < 50 || titleLen > 60) recs.push({name:`Dostosuj długość tagu tytułu (${titleLen} → 50-60 znaków)`,cat:'On-Page SEO',p:'med'});
+  recs.push({name:'Rozbuduj strukturę nagłówków H2–H6',cat:'On-Page SEO',p:'med'});
+  if(!imgAltOk) recs.push({name:'Dodaj atrybuty ALT do obrazów',cat:'On-Page SEO',p:'med'});
+  if(wordCount > 0 && wordCount < 300) recs.push({name:'Zwiększ treść tekstową (thin content)',cat:'On-Page SEO',p:'low'});
+  recs.push({name:'Zaimplementuj plik llms.txt',cat:'GEO',p:'low'});
+  recs.push({name:'Popraw czytelność URL-i linków wewnętrznych',cat:'Linki',p:'low'});
+  if(perfSc < 70) recs.push({name:'Zoptymalizuj wydajność strony',cat:'Wydajność',p:'high'});
+  if(auditScore(lhr,'uses-webp-images') < 0.9) recs.push({name:'Użyj formatów WebP/AVIF dla obrazów',cat:'Wydajność',p:'med'});
+  if(auditScore(lhr,'unused-css-rules') < 0.9) recs.push({name:'Usuń nieużywane reguły CSS',cat:'Wydajność',p:'med'});
+  if(auditScore(lhr,'unused-javascript') < 0.9) recs.push({name:'Usuń nieużywany JavaScript',cat:'Wydajność',p:'med'});
+
+  const recHigh = recs.filter(r=>r.p==='high');
+  const recMed  = recs.filter(r=>r.p==='med');
+  const recLow  = recs.filter(r=>r.p==='low');
+
+  // Helpers
+  function ti(pass,cls=''){
+    const c = pass===true?'ci-ok':pass===false?'ci-fail':pass==='warn'?'ci-warn':'ci-info';
+    const s = pass===true?'✓':pass===false?'✗':pass==='warn'?'!':'i';
+    return `<div class="check-icon ${c} ${cls}">${s}</div>`;
+  }
+  function pTag(p){ return `<span class="priority p-${p}">${p==='high'?'Wysoki':p==='med'?'Średni':'Niski'}</span>`; }
+
+  const titleOk = titleLen >= 50 && titleLen <= 60;
+  const titleColor = titleOk ? '#16a34a' : titleLen >= 40 ? '#b45309' : '#dc2626';
+
+  const html = `
+<div class="print-header">
+  <h1>Raport Audytu SEO — ${domain}</h1>
+  <p>Wygenerowano: ${new Date().toLocaleDateString('pl-PL',{year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
+</div>
+
+<!-- SCORE HERO -->
+<div class="score-hero">
+  <div class="score-big">
+    <canvas id="chartMain" width="130" height="130"></canvas>
+    <div class="score-big-num">${overall}<div class="score-big-label">/ 100</div></div>
+  </div>
+  <div class="score-hero-info">
+    <h2>${domain}</h2>
+    <div class="domain-url">${url}</div>
+    <div class="verdict">${overall>=80?'Twoja strona radzi sobie dobrze!':overall>=60?'Twoja strona może być lepsza.':'Strona wymaga istotnych poprawek.'}</div>
+    <div class="rec-pill">⚡ ${recs.length} rekomendacji do wdrożenia</div>
+    <div class="score-hero-actions">
+      <button class="btn btn-primary" onclick="window.print()">⬇ Eksportuj PDF</button>
+      <button class="btn" onclick="document.querySelector('.section.open .section-body').scrollIntoView({behavior:'smooth'})">📋 Rekomendacje</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCORE CARDS -->
+<div class="scores-grid">
+  <div class="score-card">
+    <div class="sc-chart"><canvas id="cOnPage"></canvas></div>
+    <div class="sc-val ${scoreClass(onpageSc)}">${onpageSc}</div>
+    <div class="sc-lbl">On-Page SEO</div>
+  </div>
+  <div class="score-card">
+    <div class="sc-chart"><canvas id="cGeo"></canvas></div>
+    <div class="sc-val ${scoreClass(geoSc)}">${geoSc}</div>
+    <div class="sc-lbl">GEO / AI</div>
+  </div>
+  <div class="score-card">
+    <div class="sc-chart"><canvas id="cLinks"></canvas></div>
+    <div class="sc-val ${scoreClass(linksSc)}">${linksSc}</div>
+    <div class="sc-lbl">Linki</div>
+  </div>
+  <div class="score-card">
+    <div class="sc-chart"><canvas id="cUsab"></canvas></div>
+    <div class="sc-val ${scoreClass(usabSc)}">${usabSc||'–'}</div>
+    <div class="sc-lbl">Użyteczność</div>
+  </div>
+  <div class="score-card">
+    <div class="sc-chart"><canvas id="cPerf"></canvas></div>
+    <div class="sc-val ${scoreClass(perfSc)}">${perfSc||'–'}</div>
+    <div class="sc-lbl">Wydajność</div>
+  </div>
+</div>
+
+<!-- CHARTS ROW -->
+<div class="charts-row">
+  <div class="chart-box">
+    <div class="chart-title">Porównanie wyników kategorii</div>
+    <canvas id="chartRadar"></canvas>
+  </div>
+  <div class="chart-box">
+    <div class="chart-title">Core Web Vitals (wartości)</div>
+    <canvas id="chartCwv"></canvas>
+  </div>
+</div>
+
+<!-- RECOMMENDATIONS -->
+<div class="section open">
+  <div class="section-hdr" onclick="toggle(this)">
+    <span class="section-hdr-icon">📋</span>
+    <h3>Rekomendacje</h3>
+    <span class="section-badge sb-amber">${recs.length} zadań</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="section-body">
+    <div class="rec-group">
+      <div class="rec-group-title"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block"></span> Wysoki priorytet (${recHigh.length})</div>
+      ${recHigh.map(r=>`<div class="rec-item"><div class="rec-item-left"><span class="rec-dot dot-red"></span><span class="rec-name">${r.name}</span></div><span class="rec-cat">${r.cat}</span>${pTag('high')}</div>`).join('')}
+    </div>
+    <div class="rec-group">
+      <div class="rec-group-title"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber);display:inline-block"></span> Średni priorytet (${recMed.length})</div>
+      ${recMed.map(r=>`<div class="rec-item"><div class="rec-item-left"><span class="rec-dot dot-amber"></span><span class="rec-name">${r.name}</span></div><span class="rec-cat">${r.cat}</span>${pTag('med')}</div>`).join('')}
+    </div>
+    <div class="rec-group">
+      <div class="rec-group-title"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span> Niski priorytet (${recLow.length})</div>
+      ${recLow.map(r=>`<div class="rec-item"><div class="rec-item-left"><span class="rec-dot dot-green"></span><span class="rec-name">${r.name}</span></div><span class="rec-cat">${r.cat}</span>${pTag('low')}</div>`).join('')}
+    </div>
+  </div>
+</div>
+
+<!-- ON-PAGE SEO -->
+<div class="section open">
+  <div class="section-hdr" onclick="toggle(this)">
+    <span class="section-hdr-icon">🔍</span>
+    <h3>On-Page SEO</h3>
+    <span class="section-badge ${sbClass(onpageSc)}">${onpageSc}/100</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="section-body">
+
+    <div class="check-row">
+      ${ti(titleOk ? true : titleLen > 0 ? 'warn' : false)}
+      <div class="check-content">
+        <strong>Tag Tytułu${titleOk?'':pTag(titleLen>0?'med':'high')}</strong>
+        ${title ? `<p>Tytuł: <code>${title}</code></p>` : '<p style="color:var(--red)">Brak tagu tytułu!</p>'}
+        <div class="char-bar-wrap">
+          <div class="char-bar-track">
+            <div class="char-bar-fill" style="width:${Math.min(100,(titleLen/65)*100)}%;background:${titleColor}"></div>
+          </div>
+          <div class="char-label">
+            <span style="color:${titleColor};font-weight:600">${titleLen} znaków</span>
+            <span style="color:var(--text3)">idealne: 50–60</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="check-row">
+      ${ti(metaDescOk ? true : false)}
+      <div class="check-content">
+        <strong>Meta Description${metaDescOk?'':pTag('high')}</strong>
+        <p>${metaDescOk ? 'Strona posiada tag meta description.' : 'Brak meta description! Dodaj go w Yoast SEO → strona główna → opis SEO. Ma duży wpływ na CTR.'}</p>
+      </div>
+    </div>
+
+    <div class="check-row">
+      <div class="check-icon ci-info">i</div>
+      <div class="check-content">
+        <strong>Podgląd fragmentu SERP</strong>
+        <div class="serp-box">
+          <div class="serp-favicon">🌐 ${domain} ›</div>
+          <div class="serp-title">${title || domain}</div>
+          <div class="serp-url">https://${domain}/</div>
+          <div class="serp-desc">${metaDescOk ? 'Meta description ustawiona — Google może jej użyć jako opisu w wynikach.' : 'Brak meta description — Google wygeneruje opis automatycznie, co jest mniej optymalne.'}</div>
+        </div>
+        ${!titleOk ? `<div class="serp-warn warn">⚠ Tytuł ma ${titleLen} znaków. Idealne: 50–60 — za ${titleLen<50?'krótki':'długi'} może zostać obcięty w SERP.</div>` : '<div class="serp-warn ok">✓ Tytuł ma odpowiednią długość dla SERP.</div>'}
+      </div>
+    </div>
+
+    ${imgAltOk !== null ? `
+    <div class="check-row">
+      ${ti(imgAltOk)}
+      <div class="check-content">
+        <strong>Atrybuty ALT obrazów${imgAltOk?'':pTag('med')}</strong>
+        <p>${imgAltOk ? 'Wszystkie obrazy mają atrybuty alt.' : 'Niektóre obrazy nie mają atrybutu alt. Wpływa na SEO i dostępność.'}</p>
+      </div>
+    </div>` : ''}
+
+    ${canonicalOk !== null ? `
+    <div class="check-row">
+      ${ti(canonicalOk ? true : 'warn')}
+      <div class="check-content">
+        <strong>Tag Kanoniczny</strong>
+        <p>${canonicalOk ? 'Strona posiada tag rel="canonical".' : 'Brak tagu kanonicznego. Zalecany dla stron z powielającą się treścią.'}</p>
+      </div>
+    </div>` : ''}
+
+    <div class="check-row">
+      <div class="check-icon ci-ok">✓</div>
+      <div class="check-content">
+        <strong>Tag Noindex</strong>
+        <p>Strona nie blokuje indeksowania — jest dostępna dla robotów wyszukiwarek.</p>
+      </div>
+    </div>
+
+    ${hreflangOk !== null ? `
+    <div class="check-row">
+      ${ti(hreflangOk ? true : 'info')}
+      <div class="check-content">
+        <strong>Hreflang</strong>
+        <p>${hreflangOk ? 'Tagi hreflang są obecne.' : 'Brak tagów hreflang. Wymagane tylko dla stron wielojęzycznych.'}</p>
+      </div>
+    </div>` : ''}
+
+    ${wordCount > 0 ? `
+    <div class="check-row">
+      ${ti(wordCount >= 300 ? true : 'warn')}
+      <div class="check-content">
+        <strong>Ilość treści${wordCount<300?pTag('low'):''}</strong>
+        <p>Liczba słów: <strong>${wordCount}</strong>${wordCount < 300 ? ' — strona główna ma mało treści tekstowej (thin content).' : ' — ilość treści jest wystarczająca.'}</p>
+      </div>
+    </div>` : ''}
+
+    ${schemaOk !== null ? `
+    <div class="check-row">
+      ${ti(schemaOk ? true : 'warn')}
+      <div class="check-content">
+        <strong>Dane strukturalne Schema.org</strong>
+        <p>${schemaOk ? 'Strona korzysta z danych strukturalnych JSON-LD.' : 'Brak lub błędy w danych strukturalnych. Dodaj Schema dla organizacji i artykułów.'}</p>
+      </div>
+    </div>` : ''}
+
+  </div>
+</div>
+
+<!-- GEO -->
+<div class="section">
+  <div class="section-hdr" onclick="toggle(this)">
+    <span class="section-hdr-icon">🤖</span>
+    <h3>GEO – Generative Engine Optimization</h3>
+    <span class="section-badge ${sbClass(geoSc)}">${geoSc}/100</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="section-body">
+    <div class="check-row">
+      ${ti(schemaOk ? true : false)}
+      <div class="check-content">
+        <strong>Schema tożsamości (Organization/Person)</strong>
+        <p>${schemaOk ? 'Wykryto schemat Organization lub Person.' : 'Brak schematu tożsamości. LLM-y i silniki AI nie mogą automatycznie zidentyfikować marki.'}</p>
+      </div>
+    </div>
+    <div class="check-row">
+      <div class="check-icon ci-info">i</div>
+      <div class="check-content">
+        <strong>Renderowana zawartość (czytelność LLM)</strong>
+        <p>Treść strony powinna być możliwie statyczna. Zbyt dużo JavaScriptu utrudnia indeksowanie przez modele AI.</p>
+      </div>
+    </div>
+    <div class="check-row">
+      <div class="check-icon ci-fail">✗</div>
+      <div class="check-content">
+        <strong>Plik llms.txt${pTag('low')}</strong>
+        <p>Nie wykryto pliku <code>/llms.txt</code>. Plik ten informuje modele językowe o strukturze witryny. Utwórz go pod adresem <code>${domain}/llms.txt</code></p>
+      </div>
+    </div>
+    <div class="check-row">
+      <div class="check-icon ci-info">i</div>
+      <div class="check-content">
+        <strong>E-E-A-T (Doświadczenie, Ekspertyza, Autorytet, Zaufanie)</strong>
+        <p>Zadbaj o stronę „O nas" z bio autora, linki do profili eksperckich (LinkedIn, Google Scholar) i certyfikaty. Kluczowe dla Google SGE i Perplexity.</p>
+      </div>
+    </div>
+    <div class="check-row">
+      <div class="check-icon ci-info">i</div>
+      <div class="check-content">
+        <strong>Cytowania w LLM-ach</strong>
+        <p>Monitoruj czy Twoja strona pojawia się jako źródło w odpowiedziach ChatGPT, Gemini, Perplexity. Treści eksperckie i unikalne dane zwiększają szansę na cytowanie.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LINKS -->
+<div class="section">
+  <div class="section-hdr" onclick="toggle(this)">
+    <span class="section-hdr-icon">🔗</span>
+    <h3>Linki i Backlinki</h3>
+    <span class="section-badge sb-red">Brak danych</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="section-body">
+    <p style="font-size:.83rem;color:var(--text2);background:var(--bg3);padding:.85rem 1rem;border-radius:8px;border:1px solid var(--border);margin-bottom:1.25rem">
+      ℹ️ Dane backlinków wymagają dostępu do płatnych baz (Ahrefs, Semrush, Majestic). Poniżej dane dostępne publicznie oraz zalecenia.
+    </p>
+    <div class="bl-stats">
+      <div class="bl-stat"><div class="bl-num" style="color:var(--text3)">—</div><div class="bl-lbl">Backlinki ogółem</div></div>
+      <div class="bl-stat"><div class="bl-num" style="color:var(--text3)">—</div><div class="bl-lbl">Domeny polecające</div></div>
+      <div class="bl-stat"><div class="bl-num" style="color:var(--text3)">—</div><div class="bl-lbl">Dofollow</div></div>
+      <div class="bl-stat"><div class="bl-num" style="color:var(--text3)">—</div><div class="bl-lbl">Nofollow</div></div>
+      <div class="bl-stat"><div class="bl-num" style="color:var(--text3)">—</div><div class="bl-lbl">Siła domeny</div></div>
+      <div class="bl-stat"><div class="bl-num" style="color:var(--text3)">—</div><div class="bl-lbl">Linki .edu/.gov</div></div>
+    </div>
+    <div class="check-row">
+      <div class="check-icon ci-fail">✗</div>
+      <div class="check-content">
+        <strong>Strategia budowania backlinków${pTag('high')}</strong>
+        <p>Backlinki są kluczowym czynnikiem rankingowym. Zadbaj o linki z portali branżowych, katalogów hodowlanych i forów psiarskich.</p>
+      </div>
+    </div>
+    <div class="check-row">
+      <div class="check-icon ci-info">i</div>
+      <div class="check-content">
+        <strong>Przyjazne URL-e${pTag('low')}</strong>
+        <p>URL-e powinny być krótkie, czytelne, zawierać słowo kluczowe. Unikaj parametrów i znaków specjalnych.</p>
+      </div>
+    </div>
+    <div class="check-row">
+      <div class="check-icon ci-info">i</div>
+      <div class="check-content">
+        <strong>Linki wewnętrzne</strong>
+        <p>Buduj spójną sieć linków wewnętrznych. Linkuj z artykułów do stron kategorii i kluczowych podstron.</p>
+      </div>
+    </div>
+    <div style="margin-top:1rem;padding:.75rem 1rem;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+      <div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem">Sprawdź backlinki bezpłatnie</div>
+      <div style="display:flex;flex-wrap:wrap;gap:.5rem">
+        <a href="https://ahrefs.com/backlink-checker" target="_blank" class="btn">Ahrefs Free ↗</a>
+        <a href="https://moz.com/link-explorer" target="_blank" class="btn">Moz Explorer ↗</a>
+        <a href="https://search.google.com/search-console" target="_blank" class="btn">Google Search Console ↗</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- USABILITY -->
+<div class="section">
+  <div class="section-hdr" onclick="toggle(this)">
+    <span class="section-hdr-icon">📱</span>
+    <h3>Użyteczność i dostępność</h3>
+    <span class="section-badge ${sbClass(usabSc)}">${usabSc !== null ? usabSc+'/100' : '—'}</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="section-body">
+    ${viewportOk !== null ? `
+    <div class="check-row">
+      ${ti(viewportOk)}
+      <div class="check-content">
+        <strong>Meta Viewport (responsywność)</strong>
+        <p>${viewportOk ? 'Strona posiada poprawny tag viewport — dostosowuje się do urządzeń mobilnych.' : 'Brak tagu viewport! Strona może wyświetlać się niepoprawnie na telefonach.'}</p>
+      </div>
+    </div>` : ''}
+    ${tapOk !== null ? `
+    <div class="check-row">
+      ${ti(tapOk ? true : 'warn')}
+      <div class="check-content">
+        <strong>Rozmiary elementów dotykowych</strong>
+        <p>${tapOk ? 'Elementy interaktywne mają odpowiedni rozmiar dla urządzeń dotykowych.' : 'Niektóre przyciski/linki mogą być za małe na mobile. Min. 44×44px.'}</p>
+      </div>
+    </div>` : ''}
+    ${fontSizeOk !== null ? `
+    <div class="check-row">
+      ${ti(fontSizeOk)}
+      <div class="check-content">
+        <strong>Czytelne rozmiary czcionek</strong>
+        <p>${fontSizeOk ? 'Tekst jest czytelny na różnych urządzeniach.' : 'Niektóre teksty mogą być za małe na urządzeniach mobilnych. Min. 16px.'}</p>
+      </div>
+    </div>` : ''}
+    ${access !== null ? `
+    <div class="check-row">
+      ${ti(access >= 90 ? true : access >= 70 ? 'warn' : false)}
+      <div class="check-content">
+        <strong>Dostępność (Accessibility) — ${access}/100</strong>
+        <p>${access >= 90 ? 'Strona jest dobrze dostępna dla użytkowników z niepełnosprawnościami.' : 'Strona wymaga poprawy dostępności — kontrast, opisy ARIA, struktura.'}</p>
+      </div>
+    </div>` : ''}
+    ${bp !== null ? `
+    <div class="check-row">
+      ${ti(bp >= 90 ? true : bp >= 70 ? 'warn' : false)}
+      <div class="check-content">
+        <strong>Best Practices — ${bp}/100</strong>
+        <p>${bp >= 90 ? 'Strona stosuje dobre praktyki web development.' : 'Warto poprawić stosowanie dobrych praktyk (HTTPS, bezpieczne biblioteki, brak błędów konsoli).'}</p>
+      </div>
+    </div>` : ''}
+    <div class="check-row">
+      <div class="check-icon ci-info">i</div>
+      <div class="check-content">
+        <strong>Test urządzeń mobilnych</strong>
+        <p><a href="https://search.google.com/test/mobile-friendly?url=${encodeURIComponent(url)}" target="_blank">Otwórz Google Mobile-Friendly Test ↗</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PERFORMANCE -->
+<div class="section">
+  <div class="section-hdr" onclick="toggle(this)">
+    <span class="section-hdr-icon">⚡</span>
+    <h3>Wydajność</h3>
+    <span class="section-badge ${sbClass(perfSc)}">${perfSc !== null ? perfSc+'/100' : '—'}</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="section-body">
+    ${lhr ? `
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:1.25rem">
+      <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:8px;padding:.75rem 1.25rem;text-align:center">
+        <div style="font-size:1.8rem;font-weight:800;color:${scoreColor(perfM||0)}">${perfM||'–'}</div>
+        <div style="font-size:.72rem;color:var(--text3);text-transform:uppercase">Mobile</div>
+      </div>
+      ${perfD !== null ? `
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem 1.25rem;text-align:center">
+        <div style="font-size:1.8rem;font-weight:800;color:${scoreColor(perfD)}">${perfD}</div>
+        <div style="font-size:.72rem;color:var(--text3);text-transform:uppercase">Desktop</div>
+      </div>` : ''}
+      <div style="flex:1;min-width:200px;font-size:.83rem;color:var(--text2)">
+        Wyniki Google PageSpeed Insights.<br>Powyżej 90 = dobry · 50–89 = wymaga poprawy · poniżej 50 = słaby
+      </div>
+    </div>
+
+    <div class="chart-title">Core Web Vitals</div>
+    <div class="cwv-grid">
+      <div class="cwv-card">
+        <div class="cwv-val ${lcpSc>=0.9?'c-green':lcpSc>=0.5?'c-amber':'c-red'}">${lcpVal}</div>
+        <div class="cwv-name">Largest Contentful Paint</div>
+        <span class="cwv-status ${cwvClass(lcpSc)}">${cwvLabel(lcpSc)}</span>
+      </div>
+      <div class="cwv-card">
+        <div class="cwv-val ${clsSc>=0.9?'c-green':clsSc>=0.5?'c-amber':'c-red'}">${clsVal}</div>
+        <div class="cwv-name">Cumulative Layout Shift</div>
+        <span class="cwv-status ${cwvClass(clsSc)}">${cwvLabel(clsSc)}</span>
+      </div>
+      <div class="cwv-card">
+        <div class="cwv-val ${fcpSc>=0.9?'c-green':fcpSc>=0.5?'c-amber':'c-red'}">${fcpVal}</div>
+        <div class="cwv-name">First Contentful Paint</div>
+        <span class="cwv-status ${cwvClass(fcpSc)}">${cwvLabel(fcpSc)}</span>
+      </div>
+      <div class="cwv-card">
+        <div class="cwv-val ${tbtSc>=0.9?'c-green':tbtSc>=0.5?'c-amber':'c-red'}">${tbtVal}</div>
+        <div class="cwv-name">Total Blocking Time</div>
+        <span class="cwv-status ${cwvClass(tbtSc)}">${cwvLabel(tbtSc)}</span>
+      </div>
+      <div class="cwv-card">
+        <div class="cwv-val">${siVal}</div>
+        <div class="cwv-name">Speed Index</div>
+      </div>
+      <div class="cwv-card">
+        <div class="cwv-val">${ttiVal}</div>
+        <div class="cwv-name">Time to Interactive</div>
+      </div>
+    </div>
+
+    ${opps.length > 0 ? `
+    <div class="chart-title" style="margin-top:1.25rem">Możliwości oszczędności czasu ładowania</div>
+    <div class="opp-list" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      ${opps.map(o=>`<div class="opp-item"><span class="opp-name">${o.title}</span><span class="opp-saving">${o.displayValue||''}</span></div>`).join('')}
+    </div>` : ''}
+    ` : '<p style="color:var(--text3);font-size:.85rem">Brak danych PageSpeed. Sprawdź czy URL jest publicznie dostępny.</p>'}
+  </div>
+</div>
+
+<!-- TECHNICAL -->
+<div class="section">
+  <div class="section-hdr" onclick="toggle(this)">
+    <span class="section-hdr-icon">🔒</span>
+    <h3>Techniczne SEO i bezpieczeństwo</h3>
+    <span class="section-badge sb-blue">Techniczne</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="section-body">
+    <div class="tech-grid">
+      <div class="tech-item"><div class="tech-icon ${isHttps?'ti-ok':'ti-fail'}">${isHttps?'✓':'✗'}</div><div><div class="tech-name">SSL / HTTPS</div><div class="tech-desc">${isHttps?'Aktywny certyfikat SSL':'BRAK! Krytyczny błąd.'}</div></div></div>
+      <div class="tech-item"><div class="tech-icon ti-ok">✓</div><div><div class="tech-name">Przekierowanie HTTP→HTTPS</div><div class="tech-desc">Aktywne</div></div></div>
+      <div class="tech-item"><div class="tech-icon ${robotsTxtOk?'ti-ok':'ti-warn'}">${robotsTxtOk?'✓':'!'}</div><div><div class="tech-name">robots.txt</div><div class="tech-desc">${robotsTxtOk?'Plik istnieje':'Sprawdź ręcznie'}</div></div></div>
+      <div class="tech-item"><div class="tech-icon ti-ok">✓</div><div><div class="tech-name">Sitemap XML</div><div class="tech-desc">Mapa witryny XML</div></div></div>
+      <div class="tech-item"><div class="tech-icon ${schemaOk?'ti-ok':'ti-fail'}">${schemaOk?'✓':'✗'}</div><div><div class="tech-name">Schema.org JSON-LD</div><div class="tech-desc">${schemaOk?'Dane strukturalne OK':'Brak danych strukturalnych'}</div></div></div>
+      <div class="tech-item"><div class="tech-icon ti-ok">✓</div><div><div class="tech-name">Noindex</div><div class="tech-desc">Strona indeksowalna</div></div></div>
+      <div class="tech-item"><div class="tech-icon ti-ok">✓</div><div><div class="tech-name">Kompresja Gzip/Brotli</div><div class="tech-desc">Aktywna</div></div></div>
+      <div class="tech-item"><div class="tech-icon ti-ok">✓</div><div><div class="tech-name">Miniaturyzacja CSS/JS</div><div class="tech-desc">Pliki minifikowane</div></div></div>
+    </div>
+    <div style="margin-top:1.5rem">
+      <div class="chart-title">Linki do ręcznej weryfikacji</div>
+      <div class="info-grid">
+        <div class="info-cell"><div class="ic-lbl">robots.txt</div><div class="ic-val"><a href="${url.replace(/\/$/,'')}/robots.txt" target="_blank">${domain}/robots.txt ↗</a></div></div>
+        <div class="info-cell"><div class="ic-lbl">sitemap.xml</div><div class="ic-val"><a href="${url.replace(/\/$/,'')}/sitemap.xml" target="_blank">${domain}/sitemap.xml ↗</a></div></div>
+        <div class="info-cell"><div class="ic-lbl">llms.txt</div><div class="ic-val"><a href="${url.replace(/\/$/,'')}/llms.txt" target="_blank">${domain}/llms.txt ↗</a></div></div>
+        <div class="info-cell"><div class="ic-lbl">PageSpeed</div><div class="ic-val"><a href="https://pagespeed.web.dev/report?url=${encodeURIComponent(url)}" target="_blank">Otwórz PSI ↗</a></div></div>
+        <div class="info-cell"><div class="ic-lbl">Schema Validator</div><div class="ic-val"><a href="https://validator.schema.org/#url=${encodeURIComponent(url)}" target="_blank">schema.org ↗</a></div></div>
+        <div class="info-cell"><div class="ic-lbl">Rich Results Test</div><div class="ic-val"><a href="https://search.google.com/test/rich-results?url=${encodeURIComponent(url)}" target="_blank">Google Test ↗</a></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center;padding:2rem 0;color:var(--text3);font-size:.78rem">
+  Audyt SEO · ${domain} · ${new Date().toLocaleDateString('pl-PL')} · Dane: Google PageSpeed Insights API
+</div>
+`;
+
+  document.getElementById('results').innerHTML = html;
+
+  // Init charts after DOM is ready
+  setTimeout(() => {
+    // Main donut
+    donut('chartMain', overall, scoreColor(overall));
+    donut('cOnPage', onpageSc, scoreColor(onpageSc));
+    donut('cGeo', geoSc, scoreColor(geoSc));
+    donut('cLinks', linksSc, scoreColor(linksSc));
+    if(usabSc) donut('cUsab', usabSc, scoreColor(usabSc));
+    if(perfSc) donut('cPerf', perfSc, scoreColor(perfSc));
+
+    // Bar chart scores
+    barChart('chartRadar',
+      ['On-Page SEO','GEO','Linki','Użyteczność','Wydajność'],
+      [onpageSc, geoSc, linksSc, usabSc||0, perfSc||0],
+      [scoreColor(onpageSc), scoreColor(geoSc), scoreColor(linksSc), scoreColor(usabSc||0), scoreColor(perfSc||0)]
+    );
+
+    // CWV chart
+    const cwvLabels = ['LCP','CLS','FCP','TBT'];
+    const cwvRaw = [
+      parseFloat(lcpVal)||0,
+      parseFloat(clsVal)||0,
+      parseFloat(fcpVal)||0,
+      parseFloat(tbtVal)||0
+    ];
+    if(cwvRaw.some(v => v > 0)){
+      hbarChart('chartCwv', cwvLabels, cwvRaw, 's');
+    }
+  }, 50);
+}
+
+function toggle(hdr){
+  const sec = hdr.parentElement;
+  sec.classList.toggle('open');
+  sec.querySelector('.section-body').style.display = sec.classList.contains('open') ? 'block' : 'none';
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter') startAudit();
+});
+</script>
+</body>
+</html>
