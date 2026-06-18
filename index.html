@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audyt SEO – Narzędzie do analizy stron</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8f9fb;--bg2:#fff;--bg3:#f0f2f5;
+  --text:#1a1d23;--text2:#5a6070;--text3:#8a929e;
+  --border:#e3e6ec;
+  --accent:#2563eb;
+  --green:#16a34a;--green-bg:#f0fdf4;--green-border:#bbf7d0;
+  --amber:#b45309;--amber-bg:#fffbeb;--amber-border:#fde68a;
+  --red:#dc2626;--red-bg:#fef2f2;--red-border:#fecaca;
+  --blue:#1d4ed8;--blue-bg:#eff6ff;--blue-border:#bfdbfe;
+  --dark:#0f172a;
+  --radius:10px;--radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,.08);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* HEADER */
+.site-header{background:var(--dark);color:#fff;padding:0 2rem}
+.header-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+.logo{font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:.5rem}
+.logo span{color:#60a5fa}
+.header-badge{background:#1e3a5f;color:#93c5fd;font-size:.7rem;font-weight:600;padding:.2rem .6rem;border-radius:20px}
+
+/* HERO */
+.hero{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);color:#fff;padding:3rem 2rem 3.5rem;text-align:center}
+.hero h1{font-size:2rem;font-weight:800;letter-spacing:-.03em;margin-bottom:.5rem}
+.hero h1 span{color:#60a5fa}
+.hero p{color:#94a3b8;font-size:.9rem;margin-bottom:1.75rem}
+.search-wrap{max-width:560px;margin:0 auto}
+.search-box{display:flex;background:#fff;border-radius:var(--radius-lg);overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.3)}
+.search-box input{flex:1;border:none;outline:none;padding:.85rem 1.25rem;font-size:1rem;color:var(--text)}
+.search-box input::placeholder{color:#94a3b8}
+.btn-run{background:var(--accent);color:#fff;border:none;padding:.85rem 1.4rem;font-size:.95rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .2s}
+.btn-run:hover{background:#1d4ed8}
+.btn-run:disabled{background:#94a3b8;cursor:not-allowed}
+.search-hint{color:#64748b;font-size:.78rem;margin-top:.6rem}
+
+/* MAIN */
+.main{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+#results{display:none}
+
+/* PROGRESS */
+.progress-wrap{background:#fff;border-radius:var(--radius-lg);padding:1.75rem;max-width:440px;margin:2rem auto 0;text-align:center;box-shadow:var(--shadow);display:none}
+.spinner{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto .75rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.prog-outer{height:5px;background:#e2e8f0;border-radius:3px;margin:.75rem 0;overflow:hidden}
+.prog-inner{height:100%;background:var(--accent);border-radius:3px;transition:width .5s}
+.step-list{list-style:none;text-align:left;font-size:.82rem;margin-top:.5rem}
+.step-list li{padding:.22rem 0;display:flex;align-items:center;gap:.5rem;color:var(--text3)}
+.step-list li.done{color:var(--green)}
+.step-list li.active{color:var(--text);font-weight:500}
+.step-list li::before{content:'○';font-size:.6rem;flex-shrink:0}
+.step-list li.done::before{content:'✓';color:var(--green)}
+.step-list li.active::before{content:'◉';color:var(--accent)}
+
+/* SECTION */
+.section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:1.25rem;box-shadow:var(--shadow);overflow:hidden}
+.section-hdr{padding:1rem 1.5rem;display:flex;align-items:center;gap:.75rem;cursor:pointer;user-select:none;transition:background .15s}
+.section-hdr:hover{background:var(--bg3)}
+.section.open .section-hdr{border-bottom:1px solid var(--border)}
+.section-icon{font-size:1.1rem;width:28px;text-align:center;flex-shrink:0}
+.section-hdr h3{flex:1;font-size:.95rem;font-weight:700}
+.section-badge{font-size:.72rem;font-weight:700;padding:.2rem .7rem;border-radius:20px;white-space:nowrap}
+.sb-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.sb-amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.sb-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.sb-gray{background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0}
+.chevron{font-size:.75rem;color:var(--text3);transition:transform .2s;margin-left:.25rem}
+.section.open .chevron{transform:rotate(180deg)}
+.section-body{padding:1.5rem;display:none}
+.section.open .section-body{display:block}
+
+/* DISABLED */
+.section.disabled{opacity:.45;pointer-events:none}
+.section.disabled .section-hdr{cursor:default;background:var(--bg3)}
+.section.disabled .section-hdr h3{color:var(--text3)}
+.wip{font-size:.68rem;font-weight:600;background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;padding:.12rem .5rem;border-radius:10px;margin-left:.4rem}
+
+/* SCORE CARDS */
+.score-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1rem;margin-bottom:1.5rem}
+.score-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1rem;text-align:center}
+.score-card .ring-wrap{position:relative;width:64px;height:64px;margin:0 auto .6rem}
+.score-card .ring-wrap canvas{position:absolute;inset:0}
+.score-card .ring-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;line-height:1}
+.score-card .sc-label{font-size:.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.c-green{color:var(--green)}.c-amber{color:var(--amber)}.c-red{color:var(--red)}
+
+/* CWV */
+.cwv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.85rem;margin:1rem 0}
+.cwv-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem;text-align:center}
+.cwv-val{font-size:1.3rem;font-weight:800;line-height:1;margin-bottom:.3rem}
+.cwv-name{font-size:.68rem;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.3rem}
+.cwv-badge{font-size:.68rem;font-weight:700;padding:.12rem .45rem;border-radius:10px;display:inline-block}
+.cwv-good{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.cwv-needs{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.cwv-poor{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+
+/* CHART */
+.chart-wrap{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem;margin:1rem 0}
+.chart-label{font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem}
+.chart-wrap canvas{max-height:180px}
+
+/* OPPORTUNITIES */
+.opp-list{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:.75rem}
+.opp-item{display:flex;align-items:center;justify-content:space-between;padding:.65rem 1rem;border-bottom:1px solid var(--border);gap:1rem}
+.opp-item:last-child{border-bottom:none}
+.opp-item:nth-child(even){background:var(--bg3)}
+.opp-name{font-size:.83rem;color:var(--text);flex:1}
+.opp-saving{font-size:.8rem;font-weight:700;color:var(--amber);white-space:nowrap}
+
+/* CHECK ROW */
+.check-row{display:flex;align-items:flex-start;gap:.85rem;padding:.85rem 0;border-bottom:1px solid var(--border)}
+.check-row:last-child{border-bottom:none}
+.check-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0;margin-top:1px}
+.ci-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.ci-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.ci-fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.check-content strong{display:block;font-size:.88rem;font-weight:600;margin-bottom:.15rem}
+.check-content p{font-size:.82rem;color:var(--text2);line-height:1.5}
+
+/* SCORE HERO */
+.score-hero{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;box-shadow:var(--shadow)}
+.score-hero-ring{position:relative;width:100px;height:100px;flex-shrink:0}
+.score-hero-ring canvas{position:absolute;inset:0}
+.score-hero-ring .hero-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:1.9rem;font-weight:800;line-height:1}
+.hero-num span{font-size:.6rem;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.score-hero-info h2{font-size:1.3rem;font-weight:700;margin-bottom:.25rem}
+.score-hero-info p{font-size:.85rem;color:var(--text2)}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .9rem;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text);text-decoration:none;transition:background .15s;margin-top:.75rem}
+.btn:hover{background:var(--bg3);text-decoration:none}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#1d4ed8}
+
+/* DIVIDER */
+.section-subtitle{font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:1.25rem 0 .75rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
+
+/* MOBILE/DESKTOP TOGGLE */
+.device-tabs{display:flex;gap:.5rem;margin-bottom:1rem}
+.device-tab{padding:.4rem .9rem;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .15s}
+.device-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* PRINT */
+.print-header{display:none}
+@media print{
+  .site-header,.hero,.search-wrap,.progress-wrap,.btn,.no-print{display:none!important}
+  .print-header{display:block;padding:1rem;border-bottom:2px solid #1a1d23;margin-bottom:1rem}
+  .section-body{display:block!important}
+  .chevron{display:none}
+  @page{margin:1.5cm;size:A4}
+}
+
+.site-footer{background:var(--dark);color:#64748b;text-align:center;padding:1.5rem;font-size:.78rem;margin-top:3rem}
+.site-footer a{color:#60a5fa}
+
+@media(max-width:600px){
+  .hero h1{font-size:1.6rem}
+  .score-cards{grid-template-columns:repeat(2,1fr)}
+  .search-box{flex-direction:column}
+  .btn-run{width:100%}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header no-print">
+  <div class="header-inner">
+    <div class="logo">🔍 <strong>SEO<span>Audyt</span></strong></div>
+    <span class="header-badge">v2.1 · W budowie</span>
+  </div>
+</header>
+
+<div class="hero no-print">
+  <h1>Kompleksowy <span>Audyt SEO</span></h1>
+  <p>Dane z Google PageSpeed Insights · Kolejne moduły w budowie</p>
+  <div class="search-wrap">
+    <div class="search-box">
+      <input type="text" id="urlInput" placeholder="https://twoja-strona.pl" autocomplete="off"/>
+      <button class="btn-run" id="runBtn" onclick="startAudit()">Uruchom →</button>
+    </div>
+    <p class="search-hint">Naciśnij Enter lub kliknij przycisk</p>
+  </div>
+</div>
+
+<div class="main">
+  <div class="progress-wrap" id="progressWrap">
+    <div class="spinner"></div>
+    <p style="font-weight:600;font-size:.9rem;margin-bottom:.25rem" id="progLabel">Analizuję…</p>
+    <div class="prog-outer"><div class="prog-inner" id="progBar" style="width:5%"></div></div>
+    <ul class="step-list">
+      <li id="s0">Pobieranie danych mobile (PageSpeed)</li>
+      <li id="s1">Pobieranie danych desktop (PageSpeed)</li>
+      <li id="s2">Generowanie raportu</li>
+    </ul>
+  </div>
+  <div id="results"></div>
+</div>
+
+<footer class="site-footer no-print">
+  Dane: <a href="https://developers.google.com/speed/docs/insights/v5/get-started" target="_blank">Google PageSpeed Insights API v5</a> · Bezpłatne, bez klucza API
+</footer>
+
+<script>
+const charts = {};
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function killChart(id){
+  if(charts[id]){ charts[id].destroy(); delete charts[id]; }
+}
+
+function drawRing(canvasId, score, size=64, stroke=6){
+  killChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if(!ctx) return;
+  const color = score>=90?'#16a34a':score>=50?'#b45309':'#dc2626';
+  const r = (size-stroke)/2;
+  const circ = 2*Math.PI*r;
+  charts[canvasId] = new Chart(ctx,{
+    type:'doughnut',
+    data:{datasets:[{data:[score,100-score],backgroundColor:[color,'#e5e7eb'],borderWidth:0}]},
+    options:{cutout:'75%',plugins:{legend:{display:false},tooltip:{enabled:false}},animation:{duration:700},events:[]}
+  });
+}
+
+function drawBar(canvasId, labels, values, colors){
+  killChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if(!ctx) return;
+  charts[canvasId] = new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{data:values,backgroundColor:colors,borderRadius:5,borderSkipped:false}]},
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>` ${i.raw}/100`}}},
+      scales:{x:{min:0,max:100,grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},y:{grid:{display:false},ticks:{font:{size:11}}}},
+      animation:{duration:600}
+    }
+  });
+}
+
+function scoreColor(s){ return s>=90?'#16a34a':s>=50?'#b45309':'#dc2626'; }
+function scoreClass(s){ return s>=90?'c-green':s>=50?'c-amber':'c-red'; }
+function sbClass(s){    return s>=90?'sb-green':s>=50?'sb-amber':'sb-red'; }
+
+function cwvStatus(score){
+  if(score===null||score===undefined) return {cls:'cwv-needs',label:'Brak'};
+  if(score>=0.9) return {cls:'cwv-good',label:'Dobry'};
+  if(score>=0.5) return {cls:'cwv-needs',label:'Do poprawy'};
+  return {cls:'cwv-poor',label:'Słaby'};
+}
+
+function get(lhr,key){ return lhr?.audits?.[key]||null; }
+function score(lhr,key){ const a=get(lhr,key); return a?a.score:null; }
+function display(lhr,key){ const a=get(lhr,key); return a?(a.displayValue||'–'):'–'; }
+function catScore(lhr,cat){ return lhr?Math.round((lhr.categories?.[cat]?.score||0)*100):null; }
+
+// =============================================
+// START AUDIT
+// =============================================
+async function startAudit(){
+  let url = document.getElementById('urlInput').value.trim();
+  if(!url){ alert('Wpisz adres URL'); return; }
+  if(!/^https?:\/\//.test(url)) url = 'https://'+url;
+
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('results').innerHTML = '';
+
+  function setStep(i, state){
+    ['s0','s1','s2'].forEach((s,j)=>{
+      document.getElementById(s).className = j<i?'done':j===i?'active':'';
+    });
+    document.getElementById('progBar').style.width = `${Math.round((i/3)*95)+3}%`;
+  }
+
+  const base = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}`;
+  let mobData=null, deskData=null;
+
+  setStep(0,'active');
+  document.getElementById('progLabel').textContent = 'Pobieranie danych mobile…';
+  try{
+    const r = await fetch(base+'&strategy=mobile', {signal:AbortSignal.timeout(35000)});
+    mobData = await r.json();
+  }catch(e){ console.warn('PSI mobile failed:',e); }
+
+  setStep(1,'active');
+  document.getElementById('progLabel').textContent = 'Pobieranie danych desktop…';
+  try{
+    const r = await fetch(base+'&strategy=desktop', {signal:AbortSignal.timeout(35000)});
+    deskData = await r.json();
+  }catch(e){ console.warn('PSI desktop failed:',e); }
+
+  setStep(2,'active');
+  document.getElementById('progLabel').textContent = 'Generowanie raportu…';
+  await sleep(200);
+
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  buildReport(url, mobData, deskData);
+  document.getElementById('runBtn').disabled = false;
+}
+
+// =============================================
+// BUILD REPORT
+// =============================================
+function buildReport(url, mob, desk){
+  const lhrM = mob?.lighthouseResult||null;
+  const lhrD = desk?.lighthouseResult||null;
+  const domain = url.replace(/^https?:\/\//,'').split('/')[0];
+
+  // Scores
+  const perfM  = catScore(lhrM,'performance');
+  const perfD  = catScore(lhrD,'performance');
+  const accessM = catScore(lhrM,'accessibility');
+  const bpM    = catScore(lhrM,'best-practices');
+  const seoM   = catScore(lhrM,'seo');
+
+  // CWV mobile
+  const lcpVal = display(lhrM,'largest-contentful-paint');
+  const clsVal = display(lhrM,'cumulative-layout-shift');
+  const fcpVal = display(lhrM,'first-contentful-paint');
+  const tbtVal = display(lhrM,'total-blocking-time');
+  const siVal  = display(lhrM,'speed-index');
+  const ttiVal = display(lhrM,'interactive');
+  const lcpSc  = score(lhrM,'largest-contentful-paint');
+  const clsSc  = score(lhrM,'cumulative-layout-shift');
+  const fcpSc  = score(lhrM,'first-contentful-paint');
+  const tbtSc  = score(lhrM,'total-blocking-time');
+  const siSc   = score(lhrM,'speed-index');
+
+  // CWV desktop
+  const lcpValD = display(lhrD,'largest-contentful-paint');
+  const clsValD = display(lhrD,'cumulative-layout-shift');
+  const fcpValD = display(lhrD,'first-contentful-paint');
+  const tbtValD = display(lhrD,'total-blocking-time');
+  const siValD  = display(lhrD,'speed-index');
+  const ttiValD = display(lhrD,'interactive');
+  const lcpScD  = score(lhrD,'largest-contentful-paint');
+  const clsScD  = score(lhrD,'cumulative-layout-shift');
+  const fcpScD  = score(lhrD,'first-contentful-paint');
+  const tbtScD  = score(lhrD,'total-blocking-time');
+
+  // Opportunities (mobile)
+  const opps = lhrM ? Object.values(lhrM.audits)
+    .filter(a => a.details?.type==='opportunity' && a.score!==null && a.score<0.9 && a.displayValue)
+    .sort((a,b)=>(a.score||0)-(b.score||0))
+    .slice(0,8) : [];
+
+  // Diagnostics (failed audits)
+  const diagnostics = lhrM ? Object.values(lhrM.audits)
+    .filter(a => a.score!==null && a.score<0.9 && a.details?.type==='table' && a.details?.items?.length>0)
+    .slice(0,6) : [];
+
+  // Accessibility checks
+  const checks = [
+    { key:'image-alt',       label:'Atrybuty ALT obrazów' },
+    { key:'document-title',  label:'Tag tytułu strony' },
+    { key:'meta-description',label:'Meta description' },
+    { key:'viewport',        label:'Meta viewport (responsywność)' },
+    { key:'font-size',       label:'Czytelne rozmiary czcionek' },
+    { key:'tap-targets',     label:'Rozmiary elementów dotykowych' },
+    { key:'is-on-https',     label:'HTTPS aktywny' },
+    { key:'robots-txt',      label:'Plik robots.txt' },
+    { key:'hreflang',        label:'Tagi hreflang' },
+    { key:'canonical',       label:'Tag kanoniczny' },
+  ].map(c => ({
+    ...c,
+    s: score(lhrM, c.key),
+    val: display(lhrM, c.key)
+  }));
+
+  // Overall score
+  const scores = [perfM, accessM, bpM, seoM].filter(s=>s!==null);
+  const overall = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+
+  function ciIcon(s){
+    if(s===1) return '<div class="check-icon ci-ok">✓</div>';
+    if(s===0) return '<div class="check-icon ci-fail">✗</div>';
+    if(s===null) return '<div class="check-icon ci-warn">?</div>';
+    return '<div class="check-icon ci-warn">!</div>';
+  }
+
+  // Sekcje w budowie
+  const wip = [
+    {icon:'🔍', name:'On-Page SEO (HTML)'},
+    {icon:'🛡️', name:'Nagłówki bezpieczeństwa'},
+    {icon:'🔐', name:'SSL i certyfikat'},
+    {icon:'🗺️', name:'robots.txt i sitemap.xml'},
+    {icon:'🤖', name:'GEO – AI Optimization'},
+    {icon:'🔗', name:'Linki i Backlinki'},
+  ].map(s=>`
+    <div class="section disabled">
+      <div class="section-hdr">
+        <span class="section-icon">${s.icon}</span>
+        <h3>${s.name} <span class="wip">W budowie</span></h3>
+        <span class="section-badge sb-gray">—</span>
+      </div>
+    </div>`).join('');
+
+  const html = `
+<div class="print-header">
+  <strong>Audyt SEO — ${domain}</strong> · ${new Date().toLocaleDateString('pl-PL')}
+</div>
+
+<!-- SCORE HERO -->
+<div class="score-hero">
+  <div class="score-hero-ring">
+    <canvas id="ringMain" width="100" height="100"></canvas>
+    <div class="hero-num">${overall}<span>/ 100</span></div>
+  </div>
+  <div class="score-hero-info">
+    <h2>${domain}</h2>
+    <p>${overall>=90?'Świetnie — strona jest bardzo dobrze zoptymalizowana.':overall>=70?'Dobrze — jest kilka obszarów do poprawy.':overall>=50?'Przeciętnie — strona wymaga optymalizacji.':'Słabo — strona wymaga pilnej poprawy.'}</p>
+    <button class="btn btn-primary no-print" onclick="window.print()">⬇ Eksportuj PDF</button>
+    <a href="https://pagespeed.web.dev/report?url=${encodeURIComponent(url)}" target="_blank" class="btn no-print">Otwórz w PSI ↗</a>
+  </div>
+</div>
+
+<!-- 4 SCORE CARDS -->
+<div class="score-cards">
+  <div class="score-card">
+    <div class="ring-wrap"><canvas id="ringPerf" width="64" height="64"></canvas><div class="ring-num ${scoreClass(perfM||0)}">${perfM??'–'}</div></div>
+    <div class="sc-label">Wydajność</div>
+  </div>
+  <div class="score-card">
+    <div class="ring-wrap"><canvas id="ringAccess" width="64" height="64"></canvas><div class="ring-num ${scoreClass(accessM||0)}">${accessM??'–'}</div></div>
+    <div class="sc-label">Dostępność</div>
+  </div>
+  <div class="score-card">
+    <div class="ring-wrap"><canvas id="ringBP" width="64" height="64"></canvas><div class="ring-num ${scoreClass(bpM||0)}">${bpM??'–'}</div></div>
+    <div class="sc-label">Best Practices</div>
+  </div>
+  <div class="score-card">
+    <div class="ring-wrap"><canvas id="ringSEO" width="64" height="64"></canvas><div class="ring-num ${scoreClass(seoM||0)}">${seoM??'–'}</div></div>
+    <div class="sc-label">SEO</div>
+  </div>
+</div>
+
+<!-- SEKCJA: WYDAJNOŚĆ -->
+<div class="section open">
+  <div class="section-hdr" onclick="toggle(this)">
+    <span class="section-icon">⚡</span>
+    <h3>Wydajność</h3>
+    <span class="section-badge ${sbClass(perfM||0)}">${perfM??'–'}/100</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="section-body">
+
+    <!-- Device tabs -->
+    <div class="device-tabs no-print">
+      <button class="device-tab active" onclick="switchDevice('mobile',this)">📱 Mobile</button>
+      <button class="device-tab" onclick="switchDevice('desktop',this)">💻 Desktop</button>
+    </div>
+
+    <!-- Mobile CWV -->
+    <div id="cwv-mobile">
+      <div class="section-subtitle">Core Web Vitals — Mobile</div>
+      <div class="cwv-grid">
+        <div class="cwv-card">
+          <div class="cwv-val ${scoreClass(lcpSc||0)}">${lcpVal}</div>
+          <div class="cwv-name">LCP</div>
+          <span class="cwv-badge ${cwvStatus(lcpSc).cls}">${cwvStatus(lcpSc).label}</span>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">Largest Contentful Paint</div>
+        </div>
+        <div class="cwv-card">
+          <div class="cwv-val ${scoreClass(clsSc||0)}">${clsVal}</div>
+          <div class="cwv-name">CLS</div>
+          <span class="cwv-badge ${cwvStatus(clsSc).cls}">${cwvStatus(clsSc).label}</span>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">Cumulative Layout Shift</div>
+        </div>
+        <div class="cwv-card">
+          <div class="cwv-val ${scoreClass(fcpSc||0)}">${fcpVal}</div>
+          <div class="cwv-name">FCP</div>
+          <span class="cwv-badge ${cwvStatus(fcpSc).cls}">${cwvStatus(fcpSc).label}</span>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">First Contentful Paint</div>
+        </div>
+        <div class="cwv-card">
+          <div class="cwv-val ${scoreClass(tbtSc||0)}">${tbtVal}</div>
+          <div class="cwv-name">TBT</div>
+          <span class="cwv-badge ${cwvStatus(tbtSc).cls}">${cwvStatus(tbtSc).label}</span>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">Total Blocking Time</div>
+        </div>
+        <div class="cwv-card">
+          <div class="cwv-val ${scoreClass(siSc||0)}">${siVal}</div>
+          <div class="cwv-name">SI</div>
+          <span class="cwv-badge ${cwvStatus(siSc).cls}">${cwvStatus(siSc).label}</span>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">Speed Index</div>
+        </div>
+        <div class="cwv-card">
+          <div class="cwv-val">${ttiVal}</div>
+          <div class="cwv-name">TTI</div>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">Time to Interactive</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop CWV -->
+    <div id="cwv-desktop" style="display:none">
+      <div class="section-subtitle">Core Web Vitals — Desktop</div>
+      <div class="cwv-grid">
+        <div class="cwv-card">
+          <div class="cwv-val ${scoreClass(lcpScD||0)}">${lcpValD}</div>
+          <div class="cwv-name">LCP</div>
+          <span class="cwv-badge ${cwvStatus(lcpScD).cls}">${cwvStatus(lcpScD).label}</span>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">Largest Contentful Paint</div>
+        </div>
+        <div class="cwv-card">
+          <div class="cwv-val ${scoreClass(clsScD||0)}">${clsValD}</div>
+          <div class="cwv-name">CLS</div>
+          <span class="cwv-badge ${cwvStatus(clsScD).cls}">${cwvStatus(clsScD).label}</span>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">Cumulative Layout Shift</div>
+        </div>
+        <div class="cwv-card">
+          <div class="cwv-val ${scoreClass(fcpScD||0)}">${fcpValD}</div>
+          <div class="cwv-name">FCP</div>
+          <span class="cwv-badge ${cwvStatus(fcpScD).cls}">${cwvStatus(fcpScD).label}</span>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">First Contentful Paint</div>
+        </div>
+        <div class="cwv-card">
+          <div class="cwv-val ${scoreClass(tbtScD||0)}">${tbtValD}</div>
+          <div class="cwv-name">TBT</div>
+          <span class="cwv-badge ${cwvStatus(tbtScD).cls}">${cwvStatus(tbtScD).label}</span>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">Total Blocking Time</div>
+        </div>
+        <div class="cwv-card">
+          <div class="cwv-val">${siValD}</div>
+          <div class="cwv-name">SI</div>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">Speed Index</div>
+        </div>
+        <div class="cwv-card">
+          <div class="cwv-val">${ttiValD}</div>
+          <div class="cwv-name">TTI</div>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem">Time to Interactive</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Porównanie mobile vs desktop -->
+    ${perfM!==null && perfD!==null ? `
+    <div class="chart-wrap">
+      <div class="chart-label">Porównanie wszystkich kategorii</div>
+      <canvas id="chartBar"></canvas>
+    </div>` : ''}
+
+    <!-- Opportunities -->
+    ${opps.length>0 ? `
+    <div class="section-subtitle">Możliwości oszczędności czasu ładowania</div>
+    <div class="opp-list">
+      ${opps.map(o=>`
+        <div class="opp-item">
+          <span class="opp-name">${o.title}</span>
+          <span class="opp-saving">${o.displayValue}</span>
+        </div>`).join('')}
+    </div>` : ''}
+
+  </div>
+</div>
+
+<!-- SEKCJA: LIGHTHOUSE CHECKLIST -->
+<div class="section open">
+  <div class="section-hdr" onclick="toggle(this)">
+    <span class="section-icon">✅</span>
+    <h3>Lighthouse — podstawowe sprawdzenia</h3>
+    <span class="section-badge ${sbClass(seoM||0)}">${seoM??'–'}/100 SEO</span>
+    <span class="chevron">▾</span>
+  </div>
+  <div class="section-body">
+    <p style="font-size:.82rem;color:var(--text2);margin-bottom:1rem">
+      Dane z Google Lighthouse — wykryte automatycznie podczas analizy wydajności.
+    </p>
+    ${checks.map(c=>`
+      <div class="check-row">
+        ${ciIcon(c.s)}
+        <div class="check-content">
+          <strong>${c.label}</strong>
+          ${c.s===1 ? '<p style="color:var(--green)">✓ OK</p>' :
+            c.s===0 ? '<p style="color:var(--red)">✗ Nie spełnia wymagania</p>' :
+            c.s===null ? '<p style="color:var(--text3)">Brak danych</p>' :
+            `<p style="color:var(--amber)">Częściowo — ${c.val}</p>`}
+        </div>
+      </div>`).join('')}
+    <div style="margin-top:1rem;font-size:.78rem;color:var(--text3);padding:.75rem;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+      ℹ️ Dane pobrane z Google Lighthouse przez PSI API. Dla dokładniejszej analizy On-Page SEO (tytuły, meta tagi, nagłówki H1-H6) — moduł w budowie.
+    </div>
+  </div>
+</div>
+
+<!-- SEKCJE W BUDOWIE -->
+${wip}
+
+<div style="text-align:center;padding:1.5rem 0;color:var(--text3);font-size:.76rem">
+  ${domain} · ${new Date().toLocaleDateString('pl-PL')} · Źródło: Google PageSpeed Insights API
+</div>`;
+
+  document.getElementById('results').innerHTML = html;
+
+  // Otwórz sekcje
+  document.querySelectorAll('.section.open .section-body').forEach(b => b.style.display='block');
+
+  // Rysuj wykresy
+  setTimeout(() => {
+    drawRing('ringMain', overall, 100, 8);
+    if(perfM!==null)   drawRing('ringPerf',   perfM,   64, 6);
+    if(accessM!==null) drawRing('ringAccess', accessM, 64, 6);
+    if(bpM!==null)     drawRing('ringBP',     bpM,     64, 6);
+    if(seoM!==null)    drawRing('ringSEO',    seoM,    64, 6);
+
+    if(perfM!==null && perfD!==null){
+      const labels = ['Wydajność M','Wydajność D','Dostępność','Best Practices','SEO'];
+      const values = [perfM, perfD, accessM||0, bpM||0, seoM||0];
+      drawBar('chartBar', labels, values, values.map(scoreColor));
+    }
+  }, 50);
+}
+
+function switchDevice(device, btn){
+  document.querySelectorAll('.device-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('cwv-mobile').style.display  = device==='mobile'  ? 'block' : 'none';
+  document.getElementById('cwv-desktop').style.display = device==='desktop' ? 'block' : 'none';
+}
+
+function toggle(hdr){
+  const sec = hdr.parentElement;
+  sec.classList.toggle('open');
+  sec.querySelector('.section-body').style.display = sec.classList.contains('open') ? 'block' : 'none';
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if(e.key==='Enter') startAudit();
+});
+</script>
+</body>
+</html>
